@@ -59,7 +59,7 @@ public class PresentationAgent {
      * Action to modify an existing slide page based on user request.
      */
     @Action
-    public SlidePage modifyExistingSlide(UserInput input, Ai ai) throws IOException {
+    public SlidePage modifyExistingSlide(UserInput input, PresentationSettings settings, Ai ai) throws IOException {
         // LLM identifies which page the user wants to fix
         Integer targetPage = ai.withAutoLlm()
                 .generateObject("Extract only the page number as an integer from this request: " + input.getContent(), Integer.class);
@@ -91,7 +91,7 @@ public class PresentationAgent {
      * Action to create a brand new slide by intelligently picking a template.
      */
     @Action
-    public SlidePage createNewSlide(UserInput input, Ai ai) throws IOException {
+    public SlidePage createNewSlide(UserInput input, PresentationSettings settings, Ai ai) throws IOException {
         SlidePage page = ai.withAutoLlm()
                 .withReference(localKnowledgeTool)
                 .withToolGroup(CoreToolGroups.WEB)
