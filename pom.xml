@@ -76,7 +76,7 @@
     </build>
 
     <profiles>
-        <!--<profile>
+        <profile>
             <id>auto-ollama-models</id>
             <activation>
                 <activeByDefault>true</activeByDefault>
@@ -88,7 +88,7 @@
                     <version>${embabel-agent.version}</version>
                 </dependency>
             </dependencies>
-        </profile>-->
+        </profile>
         <!--<profile>
             <id>groq-models</id>
             <activation>
@@ -104,8 +104,7 @@
                 </dependency>
             </dependencies>
         </profile>-->
-        <!--
-        <profile>
+        <!--<profile>
             <id>google-models</id>
             <activation>
                 <property>
@@ -119,9 +118,8 @@
                     <version>${embabel-agent.version}</version>
                 </dependency>
             </dependencies>
-        </profile>
-        -->
-        <profile>
+        </profile>-->
+        <!--<profile>
             <id>google-genai-models</id>
             <activation>
                 <property>
@@ -135,7 +133,7 @@
                     <version>${embabel-agent.version}</version>
                 </dependency>
             </dependencies>
-        </profile>
+        </profile>-->
     </profiles>
 
     <repositories>

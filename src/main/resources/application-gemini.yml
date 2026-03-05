@@ -1,0 +1,14 @@
+embabel:
+  models:
+    default-llm: gemini-2.5-flash
+    default-embedding-model: gemini-embedding-001
+    llms:
+      cheapest: gemini-2.5-flash-lite
+      normal: gemini-2.5-flash
+  agent:
+    platform:
+      ranking:
+        llm: gemini-2.5-flash-lite
+      models:
+        googlegenai:
+          api-key: ${GEMINI_API_KEY}

@@ -1,0 +1,55 @@
+spring:
+  profiles:
+    active: gemini
+  ai:
+    mcp:
+      client:
+        enabled: true
+        stdio:
+          connections:
+            excalidraw:
+              command: node
+              args: scripts/excalidraw-shim.js
+              env:
+                EXPRESS_SERVER_URL: http://localhost:3001
+                ENABLE_CANVAS_SYNC: true
+
+logging:
+  level:
+    root: INFO
+
+embabel:
+  identities:
+    email:
+      writer:
+        role: "Corporate Text Processor"
+        goal: "Sanitize toxic input into professional email bodies"
+        backstory: "Focus only on the message content. A system tool will add the signature, so do not include one."
+      reviewer:
+        role: "Compliance Auditor"
+        goal: "Verify professional tone and signature presence"
+        backstory: "Strictly check if the email is polite and ends with a proper professional signature."
+  agent:
+    platform:
+      llm-operations:
+        timeout-seconds: 300
+        data-binding:
+          max-attempts: 15
+      models:
+        openai:
+          max-attempts: 30
+          backoff-millis: 6000
+          backoff-multiplier: 1.5
+          backoff-max-interval: 180000
+    rag:
+      lucene:
+        dir: target/lucene-index
+      import:
+        dir: knowledge
+
+presentation:
+  output:
+    dir: output/slides
+  merged:
+    file:
+      path: /Users/jwlee/Documents/obsidian/+Encounters/presentation_test.md

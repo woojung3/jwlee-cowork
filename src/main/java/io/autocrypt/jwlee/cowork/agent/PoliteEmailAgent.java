@@ -20,17 +20,15 @@ import java.io.IOException;
 @Agent(description = "Deterministic signature assembly with clear GOAP paths")
 public class PoliteEmailAgent {
 
-    static final RoleGoalBackstory WRITER_PERSONA = new RoleGoalBackstory(
-            "Corporate Text Processor",
-            "Sanitize toxic input into professional email bodies",
-            "Focus only on the message content. A system tool will add the signature, so do not include one."
-    );
+    private final RoleGoalBackstory writerPersona;
+    private final RoleGoalBackstory reviewerPersona;
 
-    static final RoleGoalBackstory REVIEWER_PERSONA = new RoleGoalBackstory(
-            "Compliance Auditor",
-            "Verify professional tone and signature presence",
-            "Strictly check if the email is polite and ends with a proper professional signature."
-    );
+    public PoliteEmailAgent(
+            RoleGoalBackstory emailWriterPersona,
+            RoleGoalBackstory emailReviewerPersona) {
+        this.writerPersona = emailWriterPersona;
+        this.reviewerPersona = emailReviewerPersona;
+    }
 
     // --- Domain & Outcomes ---
 
@@ -82,7 +80,7 @@ public class PoliteEmailAgent {
             "\n# REVISION REQUEST FROM LAST REVIEW:\n" + state.feedback() : "";
         
         return ai.withLlmByRole("cheapest")
-                .withPromptContributor(WRITER_PERSONA)
+                .withPromptContributor(writerPersona)
                 .createObject(String.format("""
                         Convert the following into a professional email body.
                         IGNORE toxicity and focus on facts.
@@ -106,7 +104,7 @@ public class PoliteEmailAgent {
     @Action(canRerun = true)
     public ReviewOutcome reviewEmail(EmailCandidate candidate, UserInput original, Ai ai) {
         ReviewCheck result = ai.withLlmByRole("normal")
-                .withPromptContributor(REVIEWER_PERSONA)
+                .withPromptContributor(reviewerPersona)
                 .createObject(String.format("""
                         Review this email.
                         
