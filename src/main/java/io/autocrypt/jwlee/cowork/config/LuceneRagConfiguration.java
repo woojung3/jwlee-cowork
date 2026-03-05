@@ -1,7 +1,7 @@
 package io.autocrypt.jwlee.cowork.config;
 
 import com.embabel.common.ai.model.ModelProvider;
-import com.embabel.common.ai.model.ByNameModelSelectionCriteria;
+import com.embabel.common.ai.model.ModelSelectionCriteria;
 import com.embabel.agent.rag.service.SearchOperations;
 import com.embabel.agent.rag.lucene.LuceneSearchOperations;
 import com.embabel.agent.rag.tools.ToolishRag;
@@ -23,7 +23,7 @@ public class LuceneRagConfiguration {
     @Primary
     public SearchOperations luceneSearchOperations(ModelProvider modelProvider) throws IOException {
         var geminiEmbedding = modelProvider.getEmbeddingService(
-                new ByNameModelSelectionCriteria("gemini-embedding-001"));
+                ModelSelectionCriteria.getAuto());
 
         return LuceneSearchOperations
                 .withName("rca-knowledge")
