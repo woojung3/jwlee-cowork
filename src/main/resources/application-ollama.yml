@@ -1,6 +1,7 @@
 embabel:
   models:
     default-llm: gpt-oss:120b
+    default-embedding-model: nomic-embed-text
     llms:
       cheapest: gpt-oss:120b
       normal: gpt-oss:120b
@@ -13,4 +14,4 @@ embabel:
           custom:
             api-key: not-set
             base-url: http://192.168.18.30:11434
-            models: gpt-oss:120b
+            models: gpt-oss:120b,nomic-embed-text

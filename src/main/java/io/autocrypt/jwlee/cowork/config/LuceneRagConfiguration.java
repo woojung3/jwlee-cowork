@@ -22,12 +22,12 @@ public class LuceneRagConfiguration {
     @Bean(name = "luceneSearch")
     @Primary
     public SearchOperations luceneSearchOperations(ModelProvider modelProvider) throws IOException {
-        var geminiEmbedding = modelProvider.getEmbeddingService(
+        var embeddingService = modelProvider.getEmbeddingService(
                 ModelSelectionCriteria.getAuto());
 
         return LuceneSearchOperations
                 .withName("rca-knowledge")
-                .withEmbeddingService(geminiEmbedding)
+                .withEmbeddingService(embeddingService)
                 .withIndexPath(Paths.get(luceneIndexDir))
                 // 각 데이터 조각에 문서 제목(장애 보고서 등)을 자동으로 붙여서 검색 품질을 높임
                 .withChunkTransformer(AddTitlesChunkTransformer.INSTANCE)
