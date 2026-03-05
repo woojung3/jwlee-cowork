@@ -1,3 +1,148 @@
+# Chapter 0: Setup & Configuration
+
+Embabel is configured via Spring Boot starters and `application.yml`. This chapter covers the essential Maven dependencies and property configurations required to boot an Embabel environment.
+
+## 0.1 Maven Dependencies (pom.xml)
+Embabel modules are hosted on a dedicated repository. You need the core starter, a model provider (e.g., Gemini or Ollama), and RAG modules if using knowledge bases.
+
+```xml
+<dependencies>
+    <!-- Core: Agent and GOAP engine -->
+    <dependency>
+        <groupId>com.embabel.agent</groupId>
+        <artifactId>embabel-agent-starter</artifactId>
+        <version>${embabel-agent.version}</version>
+    </dependency>
+
+    <!-- RAG Stack (Optional) -->
+    <dependency>
+        <groupId>com.embabel.agent</groupId>
+        <artifactId>embabel-agent-rag-lucene</artifactId> <!-- Local index -->
+        <version>${embabel-agent.version}</version>
+    </dependency>
+
+    <!-- Model Provider (Pick at least one) -->
+    <dependency>
+        <groupId>com.embabel.agent</groupId>
+        <artifactId>embabel-agent-starter-google-genai</artifactId> <!-- Gemini -->
+        <version>${embabel-agent.version}</version>
+    </dependency>
+</dependencies>
+
+<repositories>
+    <repository>
+        <id>embabel-releases</id>
+        <url>https://repo.embabel.com/artifactory/libs-release</url>
+    </repository>
+</repositories>
+```
+
+## 0.2 Model & Platform Configuration (application.yml)
+Define global LLM preferences, embedding models, and platform resiliency (Retries, Timeouts).
+
+```yaml
+embabel:
+  models:
+    default-llm: gemini-2.5-flash        # The default model to use
+    default-embedding-model: gemini-embedding-001 # For RAG embedding
+    llms:
+      cheapest: gemini-2.5-flash-lite    # Used when cost optimization is needed
+      normal: gemini-2.5-flash
+  agent:
+    platform:
+      llm-operations:
+        timeout-seconds: 300            # Wait time for LLM response
+        data-binding:
+          max-attempts: 15              # Retries for failed JSON parsing
+      models:
+        googlegenai:
+          api-key: ${GEMINI_API_KEY}    # Inject via environment variable
+```
+
+## 0.3 Role-Based Identities (Persona)
+Embabel allows you to define specialized personas (Identities) in `application.yml`. These personas are mapped to `RoleGoalBackstory` beans, which the LLM uses to adopt specific behaviors.
+
+### 0.3.1 Define in application.yml
+Structure your identities under `embabel.identities`.
+
+```yaml
+embabel:
+  identities:
+    email:
+      writer:
+        role: "Corporate Text Processor"
+        goal: "Sanitize toxic input into professional email bodies"
+        backstory: "Focus only on the message content. Do not include signatures."
+      reviewer:
+        role: "Compliance Auditor"
+        goal: "Verify professional tone and signature presence"
+```
+
+### 0.3.2 Map to Spring Beans (Configuration)
+Use `@ConfigurationProperties` to bind YAML to records and expose them as `RoleGoalBackstory` beans. **The bean name must match the role name used in code.**
+
+```java
+import com.embabel.agent.prompt.persona.RoleGoalBackstory;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@EnableConfigurationProperties({EmailConfig.WriterProps.class, EmailConfig.ReviewerProps.class})
+public class EmailConfig {
+
+    @ConfigurationProperties("embabel.identities.email.writer")
+    public record WriterProps(String role, String goal, String backstory) {}
+
+    @ConfigurationProperties("embabel.identities.email.reviewer")
+    public record ReviewerProps(String role, String goal, String backstory) {}
+
+    @Bean
+    public RoleGoalBackstory emailWriterPersona(WriterProps props) {
+        return new RoleGoalBackstory(props.role(), props.goal(), props.backstory());
+    }
+
+    @Bean
+    public RoleGoalBackstory emailReviewerPersona(ReviewerProps props) {
+        return new RoleGoalBackstory(props.role(), props.goal(), props.backstory());
+    }
+}
+```
+
+### 0.3.3 Usage in Agent Actions
+Invoke these personas using `.withLlmByRole("roleName")`. Embabel will automatically find the matching `RoleGoalBackstory` bean.
+
+```java
+import com.embabel.agent.api.annotation.Action;
+import com.embabel.agent.api.annotation.Agent;
+import com.embabel.agent.api.common.OperationContext;
+import com.embabel.agent.domain.io.UserInput;
+
+@Agent(description = "Processes corporate emails")
+public class EmailAgent {
+
+    @Action
+    public String writeEmail(UserInput input, OperationContext ctx) {
+        return ctx.ai()
+            .withLlmByRole("emailWriterPersona") // Matches the @Bean name
+            .generateText("Draft an email about: " + input.getContent());
+    }
+}
+```
+
+## 0.4 RAG & Storage Configuration
+Specify the location for the knowledge base (input) and the vector index (storage).
+
+```yaml
+embabel:
+  rag:
+    lucene:
+      dir: target/lucene-index          # Path for local vector index
+    import:
+      dir: knowledge                   # Directory for auto-ingestion
+```
+
 # Chapter 1: Foundation & Type-Driven Flow (GOAP)
 
 Embabel's core magic is **Goal-Oriented Action Planning (GOAP)**. Unlike sequential workflows, you define "capabilities" (Actions) and a "target" (Goal), and the framework automatically calculates the path using input/output types.
@@ -31,68 +176,188 @@ public class ContentAgent {
 
 ## 1.2 Key Mechanics for Few-Shot Learning
 - **Automatic Chaining**: If Action B requires `Analysis` as an argument and Action A returns `Analysis`, Action B will only run after Action A completes.
-- **The Blackboard**: A shared memory for the process. Every object returned by an `@Action` is automatically placed on the Blackboard.
-- **UserInput**: The starting point. It is automatically placed on the Blackboard when an agent is invoked via a user message.
-- **AchievesGoal**: Every agent needs at least one action marked with `@AchievesGoal`. This tells the planner what the "winning condition" is.
+- **The Blackboard**: A shared memory for the process
+- **UserInput**: The starting point. It is automatically placed on the Blackboard when an agent is invoked via a user message
+- **AchievesGoal**: Every agent needs at least one action marked with `@AchievesGoal`. This tells the planner what the "winning condition" is
 
 ## 1.3 OperationContext & Ai API
-The `Ai` interface (via `ctx.ai()`) is the primary way to call LLMs:
-- `.createObject(prompt, Class)`: For structured JSON output mapped to a POJO.
-- `.generateText(prompt)`: For raw string responses.
-- `.withLlm(LlmOptions)`: To tune hyperparameters like temperature or select a specific model.
-- `.withLlmByRole("reviewer")`: To use a model configured for a specific role in `application.yml`.
+The `Ai` interface (via `ctx.ai()`) is the primary way to call LLMs. It provides high-level methods for structured output and text generation, with built-in resiliency.
 
-# Chapter 2: Domain Engineering & DICE (Domain-Integrated Context Engineering)
+### 1.3.1 Core PromptRunner Methods
+These methods govern how the LLM produces output and how the framework handles failures.
 
-Embabel grounds LLM interactions in strongly-typed domain objects. This approach, **DICE**, ensures precision and reliability by giving LLMs "hands" (tools) within your domain model.
+- **`createObject(String prompt, Class<T> clazz)`**: 
+  - **Behavior**: Attempts to create a structured POJO from the prompt
+  - **Error Handling**: If the LLM produces invalid JSON or fails to meet the schema, it throws an exception. This **triggers a retry** (configured in `application.yml`)
+  - **Re-planning**: If retries are exhausted, it triggers a **system-wide re-planning** to find an alternative path to the goal
+- **`createObjectIfPossible(String prompt, Class<T> clazz)`**: 
+  - **Behavior**: Similar to `createObject`, but returns `null` instead of throwing an exception on failure
+  - **Re-planning**: Returning `null` signals the planner that this specific path is blocked, often leading to immediate **re-planning**
+- **`generateText(String prompt)`**: 
+  - **Behavior**: Returns a raw `String` response from the LLM. Best for creative writing or simple chat
 
-## 2.1 The @Tool Pattern on Domain Objects
-Unlike simple DTOs, domain objects should encapsulate logic that LLMs can invoke. This keeps the LLM grounded in your system and prevents hallucinated business logic.
+### 1.3.2 Hyperparameter Tuning & LlmOptions
+You can fine-tune the LLM's behavior (like creativity vs. determinism) using the `withLlm(LlmOptions)` method. This allows you to set the `temperature` and select specific model criteria.
 
-### Domain Object with @Tool Implementation
+- **`withTemperature(double value)`**: 
+  - **High (0.7 - 0.9)**: Recommended for creative writing, brainstorming, and storytelling
+  - **Low (0.0 - 0.2)**: Recommended for structured data extraction, factual analysis, and deterministic logic
+- **LlmOptions Factory Methods**:
+  - `LlmOptions.withAutoLlm()`: Automatically selects the best available model based on platform rankings
+  - `LlmOptions.withDefaultLlm()`: Uses the `default-llm` specified in `application.yml`
+  - `LlmOptions.fromCriteria(ModelSelectionCriteria criteria)`: Selects a model based on specific requirements (e.g., small, large, vision-capable)
+
+### 1.3.3 API Usage Example
 ```java
-@Entity
-public class CustomerProfile {
-    private String id;
-    private int loyaltyLevel;
-    private List<Order> orderHistory;
+import com.embabel.agent.api.common.OperationContext;
+import com.embabel.agent.api.annotation.Action;
+import com.embabel.agent.api.annotation.EmbabelComponent;
+import com.embabel.agent.domain.io.UserInput;
+import com.embabel.agent.api.common.Ai;
+import com.embabel.common.ai.model.LlmOptions
 
-    @Tool(description = "Check if the customer is eligible for a VIP upgrade")
-    public boolean isConciergeEligible() {
-        return loyaltyLevel >= 5 && orderHistory.size() > 10;
+@EmbabelComponent
+public class ContentActions {
+
+    @Action
+    public Story draftStory(UserInput input, Ai ai) {
+        // High temperature for creative drafting
+        return ai.withLlm(LlmOptions.withAutoLlm().withTemperature(0.7))
+                .createObject("Craft a short story about: " + input.getContent(), Story.class);
     }
 
-    @Tool(description = "Calculate special discount for this customer")
-    public double calculateDiscount() {
-        return loyaltyLevel * 0.05; // 5% per level
+    @Action
+    public Analysis analyzeFactual(Story story, Ai ai) {
+        // Low temperature for deterministic factual analysis
+        return ai.withLlm(LlmOptions.withDefaultLlm().withTemperature(0.1))
+                .createObject("Analyze the facts in: " + story.text(), Analysis.class);
     }
 }
 ```
 
-## 2.2 Using Domain Objects in Actions
-To make a domain object's tools available to an LLM, use the `withToolObject` method on the `Ai` interface.
+## 1.4 Validation & Reliability
+Embabel supports **JSR-380 bean validation** (Jakarta Validation) annotations on domain objects. This ensures that structured output from the LLM adheres to strict business rules before it is placed on the Blackboard.
 
-### Action with Tool Injection Sample
+### 1.4.1 Key Mechanics
+- **Automatic Validation**: When creating objects via `createObject` or `createObjectIfPossible`, validation is automatically performed after deserialization.
+- **Self-Correcting Retries**: If validation fails, Embabel **transparently retries** the LLM call. It includes the specific validation error messages in the retry prompt to help the LLM correct its own output.
+- **Fail-Fast to Re-plan**: If validation fails a second time, an `InvalidLlmReturnTypeException` is thrown. This triggers **system-wide re-planning** if not caught, allowing the agent to try a different strategy to reach the goal.
+- **Custom Handling**: You can catch `InvalidLlmReturnTypeException` within your `@Action` method to perform manual recovery or fallback logic.
+
+### 1.4.2 Annotated Domain Object Example
 ```java
-@Action
-public SupportAdvice handleSupport(UserInput input, CustomerProfile customer, OperationContext ctx) {
-    String prompt = "Assist the customer with their request: " + input.getContent();
+import jakarta.validation.constraints.*;
 
-    return ctx.ai()
-            .withLlmByRole("support") // Select specific model for support
-            .withToolObject(customer) // The LLM can now call getLoyaltyDiscount() and isConciergeEligible()
-            .createObject(prompt, SupportAdvice.class);
+public class User {
+    @NotBlank(message = "Name cannot be empty")
+    private String name;
+
+    @AssertTrue(message = "Working must be true")
+    private boolean working;
+
+    @Size(min = 10, max = 200, message = "About Me must be between 10 and 200 characters")
+    private String aboutMe;
+
+    @Min(value = 18, message = "Age should not be less than 18")
+    @Max(value = 150, message = "Age should not be greater than 150")
+    private int age;
+
+    @Email(message = "Email should be valid")
+    private String email;
+
+    // Standard getters and setters
+}
+```
+
+# Chapter 2: Domain Engineering & DICE (Domain-Integrated Context Engineering)
+
+Embabel grounds LLM interactions in strongly-typed domain objects and services. This approach, **DICE**, ensures precision by giving LLMs "hands" (tools) to interact with your system.
+
+## 2.1 Domain-Based vs. Service-Based Tools
+Use the `@LlmTool` annotation from `com.embabel.agent.api.annotation` to mark methods that the LLM can discover and invoke.
+
+### 2.1.1 Domain-Based Tools (Records/Entities)
+Domain objects should encapsulate their own logic. This prevents the LLM from hallucinating business rules by letting it call verified methods instead.
+
+```java
+import com.embabel.agent.api.annotation.LlmTool;
+
+/**
+ * Represents a user profile. DICE: Encapsulates persona-specific logic.
+ */
+public record CatLover(String personality, String interest) {
+    
+    @LlmTool(description = "Generate a personalized greeting for this cat lover")
+    public String getGreeting() {
+        return String.format("Meow! Greetings to our %s friend who loves %s!", personality, interest);
+    }
+}
+```
+
+### 2.1.2 Service-Based Tools (Spring Components/APIs)
+Spring-managed beans can also provide tools, typically for data fetching or external API calls (e.g., database queries, web services).
+
+```java
+import com.embabel.agent.api.annotation.LlmTool;
+import org.springframework.stereotype.Component;
+import java.util.List;
+
+@Component
+public class CatFactService {
+    @LlmTool(description = "Fetch random interesting facts about cats from an external API.")
+    public List<String> getCatFacts(int count) {
+        // Implementation of external API call
+        return List.of("Cats have five toes on their front paws.");
+    }
+}
+```
+
+## 2.2 Injecting Tools into Actions
+To make these tools available to an LLM during an `@Action`, use the `withToolObject` method on the `Ai` interface. You can inject multiple tools (both domain and service objects) simultaneously.
+
+### 2.2.1 Action with Multiple Tool Injection
+```java
+import com.embabel.agent.api.annotation.Action;
+import com.embabel.agent.api.annotation.AchievesGoal;
+import com.embabel.agent.api.common.Ai;
+
+@Action
+@AchievesGoal(description = "User is entertained with personalized cat facts")
+public CatFactResponse entertainLover(CatLover lover, CatFactService service, Ai ai) {
+    String prompt = """
+            1. Call 'getGreeting' for a personalized opening.
+            2. Use 'getCatFacts' to fetch 3 interesting facts.
+            3. Explain these facts based on the lover's personality.
+            """;
+
+    return ai.withLlmByRole("normal")
+            .withToolObject(service) // Service-based API tool
+            .withToolObject(lover)   // Domain-based object tool
+            .createObject(prompt, CatFactResponse.class);
 }
 ```
 
 ## 2.3 Key Mechanics for DICE
-- **Selective Exposure**: Only methods annotated with `@Tool` are visible to the LLM. Unannotated methods remain hidden for safety.
-- **Type Safety**: The return types of `@Tool` methods are automatically handled by the framework.
+- **Selective Exposure**: Only methods annotated with `@LlmTool` are visible to the LLM. Unannotated methods remain hidden for safety.
+- **Type Safety**: The return types of `@LlmTool` methods are automatically handled by the framework.
 - **Context Availability**: When an `@Action` method is called, its parameters (like `CustomerProfile`) are retrieved from the Blackboard. If the object exists, the planner can use it.
-- **withToolGroup**: For common external tools (web search, browser, etc.), use predefined groups:
-  ```java
-  ctx.ai().withToolGroup(CoreToolGroups.WEB).generateText("Search for...");
-  ```
+- **withToolGroup (MCP Integration)**: For common external tools (web search, browser, etc.), use predefined groups via the `withToolGroup` method.
+  - **Prerequisite**: Using `CoreToolGroups.WEB` requires the **MCP Toolkit** (a Beta feature of **Docker Desktop**) to be installed and running on your system. This toolkit provides the Model Context Protocol (MCP) server that Embabel connects to for external capabilities.
+
+### 2.3.1 Action with Tool Group Example
+```java
+import com.embabel.agent.api.annotation.Action;
+import com.embabel.agent.api.common.Ai;
+import com.embabel.agent.core.CoreToolGroups;
+
+@Action
+public String executeSearch(String query, Ai ai) {
+    // This triggers an external search via the MCP Toolkit
+    return ai.withDefaultLlm()
+            .withToolGroup(CoreToolGroups.WEB) 
+            .generateText("Wikipedia search about: " + query);
+}
+```
 
 ## 2.4 Prompt Engineering with Data Flow
 DICE transforms context into an inspectable artifact. Use XML-style tags in prompts to provide structure:
@@ -103,7 +368,7 @@ var prompt = """
     Given the above, generate a personalized greeting.
     """.formatted(customer.getName(), customer.toSummaryString());
 ```
-**LLM Instruction**: Always prioritize using `@Tool` methods on domain objects for complex calculations or data fetching rather than asking the LLM to "figure it out" from raw data.
+**LLM Instruction**: Always prioritize using `@LlmTool` methods on domain objects for complex calculations or data fetching rather than asking the LLM to "figure it out" from raw data.
 
 # Chapter 3: Advanced Planning & States
 
@@ -112,7 +377,7 @@ Embabel supports complex workflows through different planners and state-based ma
 ## 3.1 Utility AI (Event-Driven / Greedy)
 Best for cases where no fixed goal exists, but you want to react to state changes with the "most valuable" action. Useful for triage or monitoring.
 
-### Utility AI Agent Sample
+### 3.1.1 Utility AI Agent Sample
 ```java
 @Agent(
     description = "Triage and process support tickets",
@@ -138,7 +403,7 @@ public class TicketTriageAgent {
 The LLM acts as a manager, deciding which tools to call based on type schemas and currying.
 - **Currying**: If an input (e.g., `MarketData`) is already on the blackboard, the tool appears "READY" with fewer parameters to fill.
 
-### Supervisor Agent Sample
+### 3.2.1 Supervisor Agent Sample
 ```java
 @Agent(planner = PlannerType.SUPERVISOR, description = "Market research analyst")
 public class ResearchSupervisor {
@@ -152,82 +417,140 @@ public class ResearchSupervisor {
 ```
 
 ## 3.3 @State Workflows & Looping
-For complex stages (e.g., Revise-and-Review). When an action returns a `@State` object, the blackboard hides previous state objects to focus the agent on actions defined within that state. This effectively **prunes context tokens** by hiding irrelevant data from previous states.
+Embabel supports **States** within a GOAP plan to handle complex, multi-stage, or looping workflows. When an action returns a `@State`-annotated object, the framework hides previous state objects and focuses the planner on actions available within the new state.
 
-### State-Based Agent Sample
+### 3.3.1 Key State Mechanics
+- **State Scoping**: Entering a new state hides previous state objects on the blackboard, pruning the context for the LLM. Non-state objects (user data, etc.) are preserved.
+- **Inheritance**: `@State` is inherited. Annotating a parent interface or `sealed interface` automatically makes all implementations state types.
+- **Staying in State**: Return `this` with `@Action(canRerun = true)` to remain in the current state without transitioning.
+- **Looping with `clearBlackboard = true`**: To return to a previously visited state type (e.g., revise-and-review), you MUST use `clearBlackboard = true`. This resets the "has run" flags and clears the blackboard, allowing the loop to execute naturally.
+
+### 3.3.2 Branching & Looping Sample (Sealed Interface)
+This pattern uses a `sealed interface` to define explicit success/failure paths for the planner.
+
 ```java
-@Agent(description = "Draft and review a document")
-public class DocumentAgent {
+import com.embabel.agent.api.annotation.Action;
+import com.embabel.agent.api.annotation.State;
+import com.embabel.agent.api.annotation.AchievesGoal;
+import com.embabel.agent.api.common.Ai;
 
-    @Action // Initial entry point
-    public DraftStage startDraft(UserInput input) {
-        return new DraftStage(input.getContent());
+@State
+public interface ReviewOutcome permits ReviewPassed, ReviewFailed {}
+
+public record ReviewPassed(String content) implements ReviewOutcome {}
+public record ReviewFailed(String feedback) implements ReviewOutcome {}
+
+@State
+public record DraftingState(String lastFeedback) {
+    
+    @Action
+    public ReviewOutcome review(String draft, Ai ai) {
+        // Logic to return ReviewPassed or ReviewFailed
+        return new ReviewFailed("Tone is too aggressive");
     }
 
-    @State // Annotation on the class/record, not a field
-    record DraftStage(String content) {
-        @Action // Action only visible when in DraftStage
-        public ReviewStage submitForReview(DraftStage stage, Ai ai) {
-            var review = ai.generateText("Review this: " + stage.content());
-            return new ReviewStage(stage.content(), review);
-        }
-    }
-
-    @State
-    record ReviewStage(String content, String reviewText) {
-        @AchievesGoal
-        @Action
-        public FinalDoc finalize(ReviewStage stage) {
-            return new FinalDoc(stage.content());
-        }
-
-        @Action(clearBlackboard = true) // Loop back to drafting by clearing state
-        public DraftStage revise(ReviewStage stage) {
-            return new DraftStage(stage.content() + " [Revised]");
-        }
+    @Action(canRerun = true, clearBlackboard = true)
+    public DraftingState loopBack(ReviewFailed failed) {
+        // Loops back to the same state type
+        return new DraftingState(failed.feedback());
     }
 }
 ```
 
 ## 3.4 Human-in-the-Loop (WaitFor)
-Pause an agent's execution to wait for user input.
+Pause agent execution to wait for user input using `WaitFor.formSubmission()`. The process enters a `WAITING` state and resumes once the user submits the required record type.
+
+### 3.4.1 HITL Integration Example
 ```java
-@Action
-public WaitFor<UserFeedback> askForFeedback(Story story) {
-    return WaitFor.formSubmission("Please review the story: " + story.text(), UserFeedback.class);
+import com.embabel.agent.api.annotation.Action;
+import com.embabel.agent.core.hitl.WaitFor;
+
+public record UserDecision(String input) {}
+
+@Action(canRerun = true)
+public UserDecision askUser(String searchResult) {
+    System.out.println("Current Result: " + searchResult);
+    // Pauses and waits for a form submission of UserDecision
+    return WaitFor.formSubmission("Should we search more?", UserDecision.class);
 }
 ```
-**LLM Instruction**: When `WaitFor` is returned, the process state changes to `WAITING`. It resumes only after the specified input is provided.
+
+**Operational Tip**: When using `clearBlackboard = true` for looping, ensure all necessary context (like original user queries or configuration) is passed as fields in the state record, as it will be the only data surviving the blackboard wipe.
 
 # Chapter 4: RAG & Conversations (Multi-Turn)
 
 Embabel’s RAG and Chat architectures are designed to minimize token usage by treating context as manageable **Assets**, **References**, and **States**.
 
 ## 4.1 Agentic RAG (Search as a Tool, ToolishRag)
-Embabel RAG is **Agentic** and **Tool-based**. Instead of simply prepending documents to a prompt (Stateless RAG), it treats search as a set of tools (`vectorSearch`, `textSearch`, etc.) that the LLM can invoke as needed. This prevents overwhelming the model with irrelevant context.
+Embabel RAG is **Agentic**. Instead of just stuffing document chunks into a prompt (Stateless RAG), it treats the search engine as a set of tools (e.g., `vectorSearch`) that the LLM invokes only when necessary.
 
-### ToolishRag Implementation Example
-`ToolishRag` acts as a facade that exposes search operations as LLM tools.
+### 4.1.1 Spring Configuration for Lucene RAG
+Configure the `SearchOperations` (the engine) and wrap it in a `ToolishRag` (the LLM tool).
 
 ```java
-@Agent(description = "Researches and answers questions from technical documentation")
-public class DocAgent {
-    private final SearchOperations searchOps;
+import com.embabel.agent.rag.lucene.LuceneSearchOperations;
+import com.embabel.agent.rag.service.SearchOperations;
+import com.embabel.agent.rag.tools.ToolishRag;
+import com.embabel.agent.rag.ingestion.transform.AddTitlesChunkTransformer;
+import com.embabel.common.ai.model.ModelProvider;
+import com.embabel.common.ai.model.ModelSelectionCriteria;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import java.nio.file.Paths;
 
-    public DocAgent(SearchOperations searchOps) {
-        this.searchOps = searchOps;
+@Configuration
+public class RagConfig {
+
+    @Bean
+    public SearchOperations luceneSearch(ModelProvider modelProvider) {
+        // Automatically selects the best embedding service (e.g., Gemini)
+        var embeddingService = modelProvider.getEmbeddingService(ModelSelectionCriteria.getAuto());
+
+        return LuceneSearchOperations
+                .withName("technical-docs")
+                .withEmbeddingService(embeddingService)
+                .withIndexPath(Paths.get("target/lucene-index"))
+                // ENHANCEMENT: Prepend document titles to each chunk for better retrieval accuracy
+                .withChunkTransformer(AddTitlesChunkTransformer.INSTANCE) 
+                .buildAndLoadChunks();
     }
 
-    @AchievesGoal(description = "Answer the user question from documentation")
-    @Action
-    public Answer answerQuestion(UserInput input, OperationContext ctx) {
-        // ToolishRag acts as an LLM Reference (a bundle of search tools)
-        var docs = new ToolishRag("docs", "Technical documentation", searchOps);
+    @Bean
+    public ToolishRag luceneRagTool(SearchOperations luceneSearch) {
+        // Expose the search engine to the LLM as a tool named "docs"
+        return new ToolishRag("docs", "Technical documentation and incident reports", luceneSearch);
+    }
+}
+```
 
-        return ctx.ai()
-            .withLlmByRole("researcher")
-            .withReference(docs) // The LLM can now call vectorSearch and textSearch only when needed.
-            .createObject("Answer using our docs: " + input.getContent(), Answer.class);
+### 4.1.2 Agent Usage & Citation Logic
+Inject the `ToolishRag` bean and use `.withReference(rag)` in your actions. You can also instruct the LLM to provide exact citations from the source URIs.
+
+```java
+import com.embabel.agent.api.annotation.Action;
+import com.embabel.agent.api.annotation.Agent;
+import com.embabel.agent.api.common.Ai;
+import com.embabel.agent.rag.tools.ToolishRag;
+
+@Agent(description = "Expert Root Cause Analysis Agent")
+public class RcaAgent {
+    private final ToolishRag luceneRag;
+
+    public RcaAgent(ToolishRag luceneRag) { this.luceneRag = luceneRag; }
+
+    @Action
+    public Report analyze(String incident, Ai ai) {
+        return ai.withAutoLlm()
+                .withReference(luceneRag) // LLM now has "docs" tools
+                .createObject(String.format("""
+                        Analyze the incident using our 'docs' knowledge base.
+                        
+                        # INCIDENT: %s
+                        
+                        # CITATION RULES:
+                        - For 'evidence' field, use the actual filename from the # URI field in the search results.
+                        - Do not invent filenames; use exact matches only.
+                        """, incident), Report.class);
     }
 }
 ```
@@ -254,7 +577,7 @@ A chatbot in Embabel is a long-lived `AgentProcess` that manages multi-turn cont
 - **Conversation**: Holds the `Message` history via `addMessage`.
 - **Blackboard Hydration**: When resuming a session, Embabel restores structured objects (POJOs) to the blackboard. This is much more token-efficient than re-sending raw text history, as structured data carries higher information density.
 
-### Chatbot Architecture Sample
+### 4.3.1 Chatbot Architecture Sample
 ```java
 @EmbabelComponent
 public class SupportChatActions {
@@ -309,12 +632,12 @@ public void eagerRAG(UserInput input, ToolishRag rag, OperationContext ctx) {
 ## 4.6 Enterprise RAG Storage (PostgreSQL & pgvector)
 For production services requiring **High Availability (HA)** and **Scalability**, Embabel supports external vector stores beyond the default Lucene implementation. The `embabel-rag-pgvector` module provides a robust, battle-tested solution for enterprise environments.
 
-### Key Advantages
+### 4.6.1 Key Advantages
 - **Hybrid Search**: Combines semantic vector similarity with traditional full-text search (PostgreSQL `tsvector`) and fuzzy matching (`pg_trgm`).
 - **High Availability**: Leverages mature PostgreSQL HA solutions (e.g., Patroni, Repmgr) to ensure continuous operation.
 - **Transactional Integrity**: Ensures that document updates and metadata changes are ACID-compliant.
 
-### Implementation with Gemini Embeddings
+### 4.6.2 Implementation with Gemini Embeddings
 To use PostgreSQL as your RAG store, configure the `PgVectorSearchOperations` bean in your Spring context. This example uses **Google Gemini** for generating embeddings.
 
 ```java
@@ -344,15 +667,21 @@ public class EnterpriseRagConfig {
 }
 ```
 
-**Operational Tip**: Multiple agent server nodes can connect to the same PostgreSQL cluster, allowing you to scale your AI services horizontally while maintaining a single, consistent knowledge source.
+**[Operational Tip]** Multiple agent server nodes can connect to the same PostgreSQL cluster, allowing you to scale your AI services horizontally while maintaining a single, consistent knowledge source.
 
 ## 4.7 Document Ingestion Pipeline
 To populate your PostgreSQL store with data, you need an ingestion pipeline. Embabel provides a unified ingestion mechanism that handles the heavy lifting: parsing, chunking, embedding, and storage.
 
-### Ingestion Service Implementation
+### 4.7.1 Ingestion Service Implementation
 This service demonstrates how to take a raw file (like a PDF) and store it in your enterprise RAG database using **Google Gemini** for embeddings.
 
 ```java
+import com.embabel.agent.rag.service.SearchOperations;
+import com.embabel.agent.rag.ingestion.policy.NeverRefreshExistingDocumentContentPolicy;
+import com.embabel.agent.rag.ingestion.TikaHierarchicalContentReader;
+import org.springframework.stereotype.Service;
+import java.nio.file.Path;
+
 @Service
 public class RagIngestionService {
 
@@ -382,17 +711,17 @@ public class RagIngestionService {
 }
 ```
 
-### Key Components of Ingestion
-- **TikaHierarchicalContentReader**: Part of the `embabel-agent-rag-tika` module. It extracts structured content and metadata from raw files.
-- **Chunking Strategy**: Configured via `ChunkerConfig`. It determines how text is split (e.g., semantic boundaries or fixed size with overlap).
-- **Ingest Policy**: `NeverRefreshExistingDocumentContentPolicy` ensures documents are not re-ingested if already present.
+### 4.7.2 Key Components of Ingestion
+- **TikaHierarchicalContentReader**: Part of the `embabel-agent-rag-tika` module. It extracts structured content and metadata from raw files
+- **Chunking Strategy**: Configured via `ChunkerConfig`. It determines how text is split (e.g., semantic boundaries or fixed size with overlap)
+- **Ingest Policy**: `NeverRefreshExistingDocumentContentPolicy` ensures documents are not re-ingested if already present
 
-**Operational Tip**: For bulk updates or very large documents, use `batchIngest()` on the store to optimize database writes and manage embedding provider rate limits effectively.
+**[Operational Tip]** For bulk updates or very large documents, use `batchIngest()` on the store to optimize database writes and manage embedding provider rate limits effectively.
 
 ## 4.8 Portable RAG for CLI Tools (Lucene & Gemini)
 For personal CLI tools or lightweight projects, **Lucene** is the ideal storage engine because it requires zero infrastructure. This setup allows your agent to carry its knowledge base in a local folder, using **Google Gemini** for high-quality embeddings.
 
-### Configuration for Local Storage
+### 4.8.1 Configuration for Local Storage
 Setup the `SearchOperations` bean to use a hidden local folder (`.embabel-index`) for persistence.
 
 ```java
@@ -413,7 +742,7 @@ public class PortableRagConfig {
 }
 ```
 
-### Agent Implementation
+### 4.8.2 Agent Implementation
 This agent demonstrates how to both ingest knowledge and research questions using the local Lucene store.
 
 ```java
@@ -451,7 +780,7 @@ public class PersonalDocAgent {
 }
 ```
 
-### Why this is best for CLI:
+### 4.8.3 Why this is best for CLI
 - **Portability**: Knowledge is stored in `./.embabel-index`. Move the project folder, and the index moves with it.
 - **Zero Setup**: No Docker or external database is required. It runs wherever Java runs.
 - **Hybrid Performance**: Lucene handles both semantic meaning (via Gemini) and exact keyword matches with extremely low latency.
@@ -467,9 +796,13 @@ Embabel's design ensures that agents are **composable, testable, and observable*
 ## 5.1 Observability: Tracing Agent Lifecycle
 Automatic OpenTelemetry tracing of actions, LLM calls, and planning iterations.
 
-### Custom Operation Tracking (@Tracked)
+### 5.1.1 Custom Operation Tracking (@Tracked)
 Add observability spans to your own methods. Inputs, outputs, duration, and errors are captured automatically.
 ```java
+import com.embabel.agent.api.annotation.Tracked;
+import com.embabel.agent.api.TrackType;
+import org.springframework.stereotype.Component;
+
 @Component
 public class PaymentService {
     @Tracked(
@@ -483,13 +816,19 @@ public class PaymentService {
     }
 }
 ```
-**LLM Instruction**: Use `@Tracked` for any business logic or external API calls inside an `@Action` method.
+**[LLM Instruction]** Use `@Tracked` for any business logic or external API calls inside an `@Action` method.
 
 ## 5.2 Unit Testing: Predictable & Cost-Effective
 Test individual agent actions without real LLM calls using `FakeOperationContext` and `FakePromptRunner`.
 
-### Unit Test Pattern Sample
+### 5.2.1 Unit Test Pattern Sample
 ```java
+import com.embabel.agent.test.unit.FakeOperationContext;
+import com.embabel.agent.test.unit.FakePromptRunner;
+import com.embabel.agent.domain.io.UserInput;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
 class StoryAgentTest {
     @Test
     void testStoryAgent() {
@@ -519,8 +858,15 @@ class StoryAgentTest {
 ## 5.3 Integration Testing: Workflow Validation
 Verify complete agent workflows under Spring Boot while still avoiding real LLM calls for speed.
 
-### Integration Test Pattern Sample
+### 5.3.1 Integration Test Pattern Sample
 ```java
+import com.embabel.agent.test.integration.EmbabelMockitoIntegrationTest;
+import com.embabel.agent.domain.io.UserInput;
+import com.embabel.agent.api.invocation.AgentInvocation;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.contains;
+
 class StoryWriterIntegrationTest extends EmbabelMockitoIntegrationTest {
     @Test
     void shouldExecuteCompleteWorkflow() {
@@ -548,7 +894,7 @@ class StoryWriterIntegrationTest extends EmbabelMockitoIntegrationTest {
 ```
 
 ## 5.4 Key Testing Patterns
-- **FakePromptRunner**: Fully supports fluent API patterns like `withId()` and `creating()`.
-- **MDC Propagation**: `run_id` and `action_name` are automatically added to logs.
-- **withExample**: Test actions that use structured examples for few-shot prompting.
-- **verifyNoMoreInteractions**: Use in integration tests to ensure the LLM was not called unexpectedly.
+- **FakePromptRunner**: Fully supports fluent API patterns like `withId()` and `creating()`
+- **MDC Propagation**: `run_id` and `action_name` are automatically added to logs
+- **withExample**: Test actions that use structured examples for few-shot prompting
+- **verifyNoMoreInteractions**: Use in integration tests to ensure the LLM was not called unexpectedly
