@@ -60,27 +60,44 @@ public class WeeklyReportController {
         model.addAttribute("processId", processId);
         model.addAttribute("statusCode", process.getStatus());
 
+        // Determine active step for workflow visualization
+        String activeStep = "START";
         if (process.getStatus() == AgentProcessStatusCode.WAITING) {
             io.autocrypt.jwlee.cowork.weeklyreport.agent.WeeklyReportAgent.AnalyzeTeamsState analyzeState = process.getBlackboard().last(io.autocrypt.jwlee.cowork.weeklyreport.agent.WeeklyReportAgent.AnalyzeTeamsState.class);
             io.autocrypt.jwlee.cowork.weeklyreport.agent.WeeklyReportAgent.FinalizeReportState finalizeState = process.getBlackboard().last(io.autocrypt.jwlee.cowork.weeklyreport.agent.WeeklyReportAgent.FinalizeReportState.class);
             
-            log.info("AnalyzeTeamsState present: {}", analyzeState != null);
-            log.info("FinalizeReportState present: {}", finalizeState != null);
-
             if (finalizeState != null) {
+                activeStep = "WAIT_HITL_2";
                 model.addAttribute("finalReport", finalizeState.report());
             } else if (analyzeState != null) {
+                activeStep = "WAIT_HITL_1";
                 model.addAttribute("analyses", analyzeState.analyses());
-            } else {
-                log.warn("WAITING status but no known state object found on blackboard!");
             }
+        } else if (process.getStatus() == AgentProcessStatusCode.COMPLETED) {
+            activeStep = "COMPLETED";
+            FinalWeeklyReport finalReport = process.getBlackboard().last(FinalWeeklyReport.class);
+            model.addAttribute("finalReport", finalReport);
+        } else {
+            // Check if we have moved beyond initial analysis
+            HumanFeedback lastFeedback = process.getBlackboard().last(HumanFeedback.class);
+            boolean finalizeStatePresent = process.getBlackboard().last(io.autocrypt.jwlee.cowork.weeklyreport.agent.WeeklyReportAgent.FinalizeReportState.class) != null;
+            
+            if (finalizeStatePresent) {
+                activeStep = "GENERATE";
+            } else if (lastFeedback != null && lastFeedback.approved()) {
+                // If feedback is approved but next state not yet created, we are in generation phase
+                activeStep = "GENERATE";
+            } else if (process.getBlackboard().last(io.autocrypt.jwlee.cowork.weeklyreport.agent.WeeklyReportAgent.AnalyzeTeamsState.class) != null) {
+                activeStep = "ANALYZE";
+            }
+        }
+        model.addAttribute("activeStep", activeStep);
 
+        if (process.getStatus() == AgentProcessStatusCode.WAITING) {
             return "fragments/approval-form :: form";
         }
 
         if (process.getStatus() == AgentProcessStatusCode.COMPLETED) {
-            FinalWeeklyReport finalReport = process.getBlackboard().last(FinalWeeklyReport.class);
-            model.addAttribute("finalReport", finalReport);
             return "fragments/finalize-complete :: complete";
         }
 

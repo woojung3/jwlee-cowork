@@ -7,6 +7,9 @@
     <div class="container">
         <h2 class="mb-4">Generate Weekly Report</h2>
 
+        <!-- Workflow Graph (Top) -->
+        <div th:replace="~{fragments/workflow :: graph(isOob=false)}"></div>
+
         <div class="row">
             <div class="col-md-4">
                 <div class="card shadow-sm mb-4">
@@ -39,6 +42,7 @@
             </div>
 
             <div class="col-md-8">
+                <!-- SSE 연결은 생성이 시작되어 processId가 확정되었을 때 fragments 안에서 맺도록 함 -->
                 <div id="report-result">
                     <div class="report-preview text-center d-flex align-items-center justify-content-center text-muted">
                         Select a meeting date and click 'Generate' to see the draft.

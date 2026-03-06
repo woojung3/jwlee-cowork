@@ -40,6 +40,7 @@ AI Agent(Embabel Framework)를 활용하여 Confluence의 주간 회의록 및 O
 ### 환경 변수 설정
 앱을 실행하기 전, 다음 환경변수 및 인증 정보 설정이 필요합니다. (Confluence, Jira API Token 및 Google Gemini API Key)
 - `GEMINI_API_KEY`: Google Gemini API 키
+- `CONFLUENCE_API_TOKEN`: Confluence/Jira API 키
 
 ### 실행 방법
 ```bash
