@@ -33,12 +33,12 @@ public class PresentationAgent {
     private final LlmReference presentationExpert;
 
     public PresentationAgent(
-            @Qualifier("directoryRagTool") ToolishRag localKnowledgeTool,
+            @Qualifier("directoryRagTool") java.util.Optional<ToolishRag> localKnowledgeTool,
             SlideFileService fileService,
-            LlmReference presentationExpert) {
-        this.localKnowledgeTool = localKnowledgeTool;
+            java.util.Optional<LlmReference> presentationExpert) {
+        this.localKnowledgeTool = localKnowledgeTool.orElse(null);
         this.fileService = fileService;
-        this.presentationExpert = presentationExpert;
+        this.presentationExpert = presentationExpert.orElse(null);
     }
 
     /**

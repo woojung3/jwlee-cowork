@@ -4,10 +4,12 @@ import com.embabel.agent.rag.service.RagServiceEnhancerProperties;
 import com.embabel.agent.rag.service.SearchOperations;
 import com.embabel.agent.rag.service.support.DirectoryTextSearch;
 import com.embabel.agent.rag.tools.ToolishRag;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import java.io.IOException;
 
 @Configuration
@@ -23,7 +25,7 @@ public class RagConfiguration {
     }
 
     @Bean(name = "directoryRagTool")
-    public ToolishRag localKnowledgeTool(SearchOperations directorySearch) {
+    public ToolishRag localKnowledgeTool(@Qualifier("directorySearch") SearchOperations directorySearch) {
         return new ToolishRag("local_knowledge", "Simple directory-based text search (Legacy)", directorySearch);
     }
 }

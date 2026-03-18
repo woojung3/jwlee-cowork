@@ -57,7 +57,7 @@ Vibe Coding을 통해 손쉽게 새 에이전트를 만들 수 있도록 표준 
   - **동작 데모 에이전트**: `demo-hitl` 명령어를 통해 실행해볼 수 있는 참조 모델. (`src/main/java/io/autocrypt/jwlee/cowork/agents/demo/DemoHitlAgent.java` 및 `DemoHitlCommand.java`)
   - *특이사항*: Spring Shell 대화형 테스트 코드 실행 시 스트림 블로킹 이슈가 있어 TDD 기반 자동화 테스트 대신 수동/아키텍처 검증으로 대체함.
 
-- [ ] **Phase 3: 스캐폴딩 패키지 작성**
+- [x] **Phase 3: 스캐폴딩 패키지 작성**
   - 복사-붙여넣기(또는 자동 생성)로 즉시 쓸 수 있는 `agents.scaffold` 패키지 구성 (Command, Agent, State, Tools)
 
 - [ ] **Phase 4: 첫 번째 샘플 에이전트 구현**
