@@ -60,7 +60,7 @@ Vibe Coding을 통해 손쉽게 새 에이전트를 만들 수 있도록 표준 
 - [x] **Phase 3: 스캐폴딩 패키지 작성**
   - 복사-붙여넣기(또는 자동 생성)로 즉시 쓸 수 있는 `agents.scaffold` 패키지 구성 (Command, Agent, State, Tools)
 
-- [ ] **Phase 4: 첫 번째 샘플 에이전트 구현**
+- [x] **Phase 4: 첫 번째 샘플 에이전트 구현**
   - 스캐폴딩을 이용해 실제로 동작하는 커스텀 에이전트 1개(예: ReadmeUpdater 등) 구현 및 테스트
 
 - [ ] **Phase 5: 이 프로젝트에 대한 README_new.md 파일 생성**

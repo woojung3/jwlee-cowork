@@ -18,12 +18,18 @@ import org.springframework.stereotype.Component;
 @Component
 public class ScaffoldAgent {
 
+    private final ScaffoldTools tools;
+
+    public ScaffoldAgent(ScaffoldTools tools) {
+        this.tools = tools;
+    }
+
     public record ScaffoldResult(String finalOutput) {}
 
     // 1. 계획(Plan) 수립 단계
     // 사용자의 입력을 받아 작업을 계획하고, 승인을 받기 위한 CoreApprovalState를 반환합니다.
     @Action
-    public CoreApprovalState proposePlan(UserInput input, ScaffoldTools tools, Ai ai) {
+    public CoreApprovalState proposePlan(UserInput input, Ai ai) {
         // 도구 사용 예시
         String data = tools.getScaffoldData(input.getContent());
         
