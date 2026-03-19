@@ -13,9 +13,6 @@ import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 @Agent(description = "Main Orchestrator Agent for general chat and task coordination")
@@ -25,45 +22,22 @@ public class ChatbotAgent {
     private final RoleGoalBackstory mainOrchestratorPersona;
     private final CoreFileTools coreFileTools;
 
-    // Safety limit: 500KB (Approx. 500,000 characters)
-    private static final long MAX_FILE_SIZE = 500 * 1024; 
-
     public ChatbotAgent(RoleGoalBackstory mainOrchestratorPersona, CoreFileTools coreFileTools) {
         this.mainOrchestratorPersona = mainOrchestratorPersona;
         this.coreFileTools = coreFileTools;
     }
 
     /**
-     * DTO to ensure safe JSON serialization for the LLM.
+     * Tool: glob
+     * DICE: Directly exposed as a tool of this agent.
      */
-    public record FileResult(String path, String content, String status) {}
-
-    /**
-     * Tool: readFile
-     * Reads the entire file if it's within the safety limit.
-     */
-    @LlmTool(description = "Reads the complete content of a specified file. Returns a FileResult containing the content.")
-    public FileResult readFile(String path) throws IOException {
-        Path filePath = Paths.get(path);
-        
-        // 1. Check if file exists and get size
-        if (!Files.exists(filePath)) {
-            return new FileResult(path, null, "ERROR: File not found.");
-        }
-
-        long size = Files.size(filePath);
-        if (size > MAX_FILE_SIZE) {
-            return new FileResult(path, null, 
-                String.format("ERROR: File too large (%d bytes). Limit is %d bytes.", size, MAX_FILE_SIZE));
-        }
-
-        // 2. Read content and wrap it in a record for safe JSON transport
-        String content = coreFileTools.readFile(path);
-        return new FileResult(path, content, "SUCCESS");
+    @LlmTool(description = "Finds files matching specific glob patterns (e.g., 'src/**/*.java'). Returns a list of relative paths.")
+    public List<String> glob(String pattern) throws IOException {
+        return coreFileTools.glob(pattern);
     }
 
     /**
-     * Responds to user messages.
+     * Responds to user messages while exposing 'this' as a tool container.
      */
     @Action(canRerun = true, trigger = UserMessage.class)
     public void chat(Conversation conversation, ActionContext context, Ai ai) {

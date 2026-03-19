@@ -12,9 +12,17 @@ import java.util.stream.Stream;
 
 /**
  * Core file manipulation tools for agents, inspired by Gemini CLI.
+ * All tools return structured results for better LLM integration and safety.
  */
 @Component
 public class CoreFileTools {
+
+    private static final long MAX_FILE_SIZE = 500 * 1024; // 500KB safety limit
+
+    /**
+     * Structured result for file operations.
+     */
+    public record FileResult(String path, String content, String status) {}
 
     private Path resolveAndCheckPath(String pathStr) {
         Path root = Paths.get(".").toAbsolutePath().normalize();
@@ -25,13 +33,25 @@ public class CoreFileTools {
         return target;
     }
 
-    @LlmTool(description = "Reads the complete content of a specified file. Returns the content as a string.")
-    public String readFile(String path) throws IOException {
+    @LlmTool(description = "Reads the complete content of a specified file. Returns a FileResult with content and status.")
+    public FileResult readFile(String path) throws IOException {
         Path filePath = resolveAndCheckPath(path);
-        return Files.readString(filePath, StandardCharsets.UTF_8);
+        
+        if (!Files.exists(filePath)) {
+            return new FileResult(path, null, "ERROR: File not found.");
+        }
+
+        long size = Files.size(filePath);
+        if (size > MAX_FILE_SIZE) {
+            return new FileResult(path, null, 
+                String.format("ERROR: File too large (%d bytes). Limit is %d bytes.", size, MAX_FILE_SIZE));
+        }
+
+        String content = Files.readString(filePath, StandardCharsets.UTF_8);
+        return new FileResult(path, content, "SUCCESS");
     }
 
-    @LlmTool(description = "Writes the complete content to a file, automatically creating missing parent directories. Overwrites existing files.")
+    @LlmTool(description = "Writes the complete content to a file, automatically creating missing parent directories.")
     public String writeFile(String path, String content) throws IOException {
         Path filePath = resolveAndCheckPath(path);
         if (filePath.getParent() != null) {
@@ -41,7 +61,7 @@ public class CoreFileTools {
         return "Successfully wrote to " + path;
     }
 
-    @LlmTool(description = "Replaces ONE occurrence of a literal string within a file. Provide enough context in 'oldString' to ensure uniqueness.")
+    @LlmTool(description = "Replaces ONE occurrence of a literal string within a file. Provide enough context.")
     public String replace(String path, String oldString, String newString) throws IOException {
         Path filePath = resolveAndCheckPath(path);
         String content = Files.readString(filePath, StandardCharsets.UTF_8);
@@ -50,11 +70,10 @@ public class CoreFileTools {
             throw new IllegalArgumentException("Could not find exact match for 'oldString' in file: " + path);
         }
         
-        // Count occurrences to ensure uniqueness
         int firstIndex = content.indexOf(oldString);
         int lastIndex = content.lastIndexOf(oldString);
         if (firstIndex != lastIndex) {
-            throw new IllegalArgumentException("Found multiple occurrences of 'oldString'. Provide more context to make it unique.");
+            throw new IllegalArgumentException("Found multiple occurrences of 'oldString'.");
         }
         
         String newContent = content.replace(oldString, newString);
@@ -71,14 +90,13 @@ public class CoreFileTools {
         }
     }
 
-    @LlmTool(description = "Finds files matching specific glob patterns (e.g., 'src/**/*.java'). Returns relative paths.")
+    @LlmTool(description = "Finds files matching specific glob patterns (e.g., 'src/**/*.java').")
     public List<String> glob(String pattern) throws IOException {
         Path root = Paths.get(".").toAbsolutePath().normalize();
         final PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
         
         try (Stream<Path> stream = Files.walk(root)) {
             return stream.filter(p -> {
-                // Relativize the path against the absolute root to match the glob against the relative string
                 Path rel = root.relativize(p);
                 return matcher.matches(rel);
             })
