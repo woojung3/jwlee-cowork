@@ -1,5 +1,6 @@
 package io.autocrypt.jwlee.cowork.core.tools;
 
+import org.jline.terminal.TerminalBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ class CoreFileToolsTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        fileTools = new CoreFileTools();
+        fileTools = new CoreFileTools(TerminalBuilder.builder().dumb(true).build());
         // Create a temporary directory inside the current working directory for safe testing
         tempDir = Files.createDirectories(Paths.get("temp_test_dir"));
         Files.writeString(tempDir.resolve("test.txt"), "Hello, World!");
@@ -84,7 +85,7 @@ class CoreFileToolsTest {
     void testPathTraversalProtection() {
         // Attempt to read a file outside the working directory
         assertThrows(IllegalArgumentException.class, () -> {
-            fileTools.readFile("../pom.xml"); // Assuming pom.xml is not at ../ relative to root
+            fileTools.readFile("../pom.xml"); 
         });
 
         // Test absolute path outside workspace

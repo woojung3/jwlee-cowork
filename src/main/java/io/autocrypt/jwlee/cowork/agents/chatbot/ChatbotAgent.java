@@ -28,12 +28,13 @@ public class ChatbotAgent {
     }
 
     /**
-     * Tool: writeFile
-     * Returns a structured FileResult to ensure reliable communication with the LLM.
+     * Tool: replace
+     * DICE: Directly exposed as a tool of this agent.
+     * (writeFile, glob, readFile, listDirectory are temporarily removed for isolated testing)
      */
-    @LlmTool(description = "Writes content to a NEW file. Fails if file exists. Returns FileResult.")
-    public CoreFileTools.FileResult writeFile(String path, String content) throws IOException {
-        return coreFileTools.writeFile(path, content);
+    @LlmTool(description = "Replaces ONE occurrence of a literal string within a file. Provide enough context in 'oldString' to ensure uniqueness.")
+    public CoreFileTools.FileResult replace(String path, String oldString, String newString) throws IOException {
+        return coreFileTools.replace(path, oldString, newString);
     }
 
     /**
