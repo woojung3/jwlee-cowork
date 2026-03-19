@@ -66,44 +66,6 @@ public class CoreFileTools {
         return FileResult.success(path, "Successfully created and wrote to " + path);
     }
 
-    @LlmTool(description = "Replaces ONE occurrence of a literal string. Shows a diff to the user. Returns FileResult.")
-    public FileResult replace(String path, String oldString, String newString) throws IOException {
-        Path filePath = resolveAndCheckPath(path);
-        if (!Files.exists(filePath)) return FileResult.error(path, "File not found.");
-
-        String content = Files.readString(filePath, StandardCharsets.UTF_8);
-        if (!content.contains(oldString)) return FileResult.error(path, "Target string not found.");
-        
-        if (content.indexOf(oldString) != content.lastIndexOf(oldString)) {
-            return FileResult.error(path, "Multiple occurrences found. Provide more context to make it unique.");
-        }
-        
-        String newContent = content.replace(oldString, newString);
-        Files.writeString(filePath, newContent, StandardCharsets.UTF_8);
-
-        // --- Visual Diff Output ---
-        showDiff(path, oldString, newString);
-        
-        return FileResult.success(path, "Successfully updated " + path);
-    }
-
-    private void showDiff(String path, String oldText, String newText) {
-        var writer = terminal.writer();
-        writer.println();
-        writer.println(new AttributedString("--- Diff: " + path + " ---", 
-                AttributedStyle.DEFAULT.foreground(AttributedStyle.CYAN)).toAnsi());
-        
-        // Simple line-based diff for the changed part
-        writer.println(new AttributedString("- " + oldText, 
-                AttributedStyle.DEFAULT.foreground(AttributedStyle.RED)).toAnsi());
-        writer.println(new AttributedString("+ " + newText, 
-                AttributedStyle.DEFAULT.foreground(AttributedStyle.GREEN)).toAnsi());
-        
-        writer.println(new AttributedString("-----------------------", 
-                AttributedStyle.DEFAULT.foreground(AttributedStyle.CYAN)).toAnsi());
-        writer.flush();
-    }
-
     @LlmTool(description = "Lists files in a directory. Returns a list of names.")
     public List<String> listDirectory(String path) throws IOException {
         Path dirPath = resolveAndCheckPath(path);

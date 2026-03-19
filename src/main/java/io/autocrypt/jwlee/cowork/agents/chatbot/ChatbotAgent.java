@@ -28,17 +28,7 @@ public class ChatbotAgent {
     }
 
     /**
-     * Tool: replace
-     * DICE: Directly exposed as a tool of this agent.
-     * (writeFile, glob, readFile, listDirectory are temporarily removed for isolated testing)
-     */
-    @LlmTool(description = "Replaces ONE occurrence of a literal string within a file. Provide enough context in 'oldString' to ensure uniqueness.")
-    public CoreFileTools.FileResult replace(String path, String oldString, String newString) throws IOException {
-        return coreFileTools.replace(path, oldString, newString);
-    }
-
-    /**
-     * Responds to user messages while exposing 'this' as a tool container.
+     * Responds to user messages while exposing CoreFileTools as a tool container.
      */
     @Action(canRerun = true, trigger = UserMessage.class)
     public void chat(Conversation conversation, ActionContext context, Ai ai) {
@@ -49,7 +39,7 @@ public class ChatbotAgent {
 
         var response = ai.withLlmByRole("cheapest")
                 .withPromptContributor(mainOrchestratorPersona)
-                .withToolObject(this) 
+                .withToolObject(coreFileTools) 
                 .respond(contextMessages);
 
         context.sendMessage(conversation.addMessage(response));
