@@ -4,8 +4,8 @@ embabel:
     default-embedding-model: gemini-embedding-001
     llms:
       simple: gemini-2.5-flash-lite
-      normal: gemini-2.5-flash
-      performant: gemini-2.5-pro
+      normal: gemini-3-flash-preview
+      performant: gemini-3-pro-preview
   agent:
     platform:
       ranking:

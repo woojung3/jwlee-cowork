@@ -21,3 +21,4 @@ output/
 **/.DS_Store
 
 **/.envrc
+.venv/

@@ -52,15 +52,30 @@ export GEMINI_API_KEY="your-api-key"
 
 ---
 
-## 💡 사용 가능한 명령어 예시
+## 💡 사용 가능한 에이전트 (Available Agents)
 
-기본적으로 제공되는 샘플 에이전트를 통해 시스템의 동작 방식을 확인할 수 있습니다.
+시스템에 기본 탑재되어 즉시 사용 가능한 에이전트들입니다.
 
-### HITL 데모 에이전트
+### 1. HITL 데모 에이전트
 Human-in-the-Loop 승인 절차가 터미널 환경에서 어떻게 비동기로 동작하는지 확인하는 간단한 데모입니다.
 ```bash
 > demo-hitl "가상의 위험한 명령 실행"
 ```
+
+### 2. PDF 번역 에이전트 (translate)
+PDF 기술 문서를 읽고 전문 용어를 유지하며 마크다운 형식으로 번역합니다.
+- **주요 특징**: PyMuPDF 기반 고성능 파싱, 용어집(Glossary) 자동 추출, 다단계 HITL 검토.
+- **Python 환경 설정 (필수)**:
+  ```bash
+  # 프로젝트 루트에서 실행
+  python3 -m venv .venv
+  source .venv/bin/activate  # Windows: .venv\Scripts\activate
+  pip install -r requirements.txt
+  ```
+- **실행 방법**:
+  ```bash
+  > translate-start --pdf-path "my_doc.pdf" --workspace-name "ws_01"
+  ```
 
 ---
 
@@ -74,3 +89,35 @@ Human-in-the-Loop 승인 절차가 터미널 환경에서 어떻게 비동기로
 4. **프롬프트 작성**: `Agent` 클래스 내의 `@Action` 메서드에서 `Ai` 인터페이스를 활용하여 LLM에게 지시할 프롬프트(목표, 제약사항 등)를 작성합니다.
 5. **승인 워크플로우 연결**: 작업 수행 전 `CoreApprovalState`를 반환하여 사용자의 승인을 받도록 설계하고, 승인 시 실행될 `@AchievesGoal` 메서드를 구현합니다.
 6. **빌드 및 검증**: `./mvnw test`를 실행하여 새로운 에이전트가 Modulith 아키텍처 규칙을 위반하지 않았는지 검증합니다.
+
+---
+
+## 🎯 앞으로 할 일 (Migration Plan)
+
+기존 파이썬 환경(`@llm-agent/**`)에서 동작하던 주요 AI 에이전트들을 마이그레이션할 계획입니다.
+
+### 1. `tc_gen` (SRS 기반 테스트 케이스 자동 생성기)
+- **목표**: 요구사항 명세서(SRS)와 지식 베이스를 바탕으로 엑셀 테스트 케이스를 자동 생성 및 수정.
+- **주요 과제 및 계획**:
+  - **Spring Shell 명령어**: `tc-gen parse`, `tc-gen parse-srs`, `tc-gen generate`, `tc-gen update`
+  - **문서 파싱 및 엑셀 처리**: HTML 파싱은 Jsoup, 엑셀 생성/수정은 Apache POI 라이브러리로 대체.
+  - **RAG(검색 증강 생성) 통합**: Python FAISS 기반 벡터 검색을 Embabel의 로컬 RAG(`ToolishRag`, `LuceneSearchOperations`) 기능으로 마이그레이션하여 요구사항 관련 지식 제공.
+  - **LLM 연동**: 테스트 케이스 JSON 규격 생성 및 대화형 업데이트 기능을 Embabel `Ai` API로 구현.
+  - **패키지 위치**: `agents.tcgen`
+
+### 2. `product_plan_gen` (Product Plan Generation Agent)
+- **목표**: Mermaid 이벤트스토밍 플로우차트를 분석하여 다단계 제품 기획서(마크다운) 묶음 자동 생성.
+- **주요 과제 및 계획**:
+  - **Spring Shell 명령어**: `product-plan-gen generate`
+  - **데이터 파싱**: Mermaid 코드를 정규식으로 파싱하여 노드와 엣지 정보를 추출하는 로직 재작성.
+  - **다단계 워크플로우**: `00_main.md`부터 `08_screen_design.md`에 이르는 순차적 템플릿 생성 과정을 Embabel의 파이프라인으로 재구성 및 JSON 추출 자동화.
+  - **프롬프트 관리**: 파이썬 하드코딩 프롬프트와 템플릿 파일들을 Java 리소스 폴더 기반 템플릿 읽기로 변경.
+  - **패키지 위치**: `agents.productplan`
+
+### 3. `presentation_gen` (발표자료 자동 생성기)
+- **목표**: 텍스트 초안과 참조 문서를 바탕으로 통일된 스타일의 Obsidian 슬라이드 마크다운 생성.
+- **주요 과제 및 계획**:
+  - **Spring Shell 명령어**: `presentation-gen create-style-guide`, `presentation-gen generate`
+  - **스타일 분석 및 본문 생성**: 샘플 파일에서 스타일 가이드를 추출하는 기능과, 청크별로 반복하여 슬라이드를 생성하는 기능 이식.
+  - **LLM 연동**: Embabel `Ai` API를 통해 문맥(Context)을 누적시키면서 슬라이드를 순차 생성하도록 구현.
+  - **패키지 위치**: `agents.presentation`
