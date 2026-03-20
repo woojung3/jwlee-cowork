@@ -71,7 +71,7 @@ public class WeeklyReportAgent {
 
     @Action
     public AnalyzeTeamsState start(RawWeeklyData rawData, JiraIssueList jiraIssueList, Ai ai, ActionContext ctx) {
-        List<String> targetTeams = List.of("EE팀", "BE팀", "PKI팀", "PnC팀", "FE팀", "Engineering팀");
+        List<String> targetTeams = List.of("EE팀", "BE팀", "PKI팀", "PnC팀", "FE팀", "Eng팀");
         
         List<TeamAnalysis> collectedData = targetTeams.parallelStream().map(team -> {
             String teamKey = team.replace("팀", "");
