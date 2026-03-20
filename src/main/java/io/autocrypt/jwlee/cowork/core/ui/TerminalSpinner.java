@@ -1,15 +1,15 @@
-package io.autocrypt.jwlee.cowork.agents.chatbot;
+package io.autocrypt.jwlee.cowork.core.ui;
 
 import org.jline.terminal.Terminal;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ChatbotSpinner {
+public class TerminalSpinner {
     private static final String[] FRAMES = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     private final Terminal terminal;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private Thread thread;
 
-    public ChatbotSpinner(Terminal terminal) {
+    public TerminalSpinner(Terminal terminal) {
         this.terminal = terminal;
     }
 

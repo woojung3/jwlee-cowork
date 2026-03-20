@@ -181,7 +181,7 @@ public class WeeklyReportAgent {
             analyses.forEach(a -> sb.append("팀: ").append(a.teamName()).append("\n- 의견: ").append(a.aiOpinion()).append("\n\n"));
             
             ApplicationContextHolder.getPublisher().publishEvent(
-                new ApprovalRequestedEvent(processId, "팀별 분석 내용을 검토하고 승인해주세요.", sb.toString())
+                new ApprovalRequestedEvent(processId, "팀별 분석 내용을 검토하고 승인해주세요.", sb.toString(), true)
             );
             return WaitFor.formSubmission("Approval Event Published", ApprovalDecision.class);
         }

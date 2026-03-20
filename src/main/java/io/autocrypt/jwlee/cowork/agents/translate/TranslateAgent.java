@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.autocrypt.jwlee.cowork.core.hitl.ApplicationContextHolder;
 import io.autocrypt.jwlee.cowork.core.hitl.ApprovalDecision;
 import io.autocrypt.jwlee.cowork.core.hitl.ApprovalRequestedEvent;
+import io.autocrypt.jwlee.cowork.core.hitl.NotificationEvent;
 
 @Agent(description = "PDF 전문 번역 에이전트")
 @Component
@@ -270,10 +271,6 @@ public class TranslateAgent {
                 }
 
                 String sourceChunk = workspace.readTranslatedChunk(wsPath, currentIndex + 1000);
-
-                System.out.println("--- DEBUG: Raw Source Chunk for Translation (" + (currentIndex + 1) + " of " + state.getTotalChunks() + ") ---");
-                System.out.println(sourceChunk);
-                System.out.println("--- END DEBUG Raw Source Chunk ---");
                 
                 String previousContext = "";
                 if (currentIndex > 0) {
@@ -318,10 +315,6 @@ public class TranslateAgent {
                     .withPromptContributor(translatorPersona)
                     .generateText(prompt);
 
-                System.out.println("--- DEBUG: Translated Chunk Content ---");
-                System.out.println(translated);
-                System.out.println("--- END DEBUG Translated Chunk Content ---");
-
                 workspace.saveTranslatedChunk(wsPath, currentIndex, translated);
                 
                 state.setCompletedChunks(currentIndex + 1);
@@ -353,6 +346,9 @@ public class TranslateAgent {
                 workspace.saveState(wsPath, state);
                 
                 System.out.println("✅ Translation completed successfully: " + outputFile.getAbsolutePath());
+                ApplicationContextHolder.getPublisher().publishEvent(
+                    new NotificationEvent("PDF 번역 완료", "번역 및 머지가 완료되었습니다: " + outputFile.getName())
+                );
                 return new TranslationResult("Successfully translated and merged to " + outputFile.getAbsolutePath());
             } catch (Exception e) {
                 throw new RuntimeException(e);

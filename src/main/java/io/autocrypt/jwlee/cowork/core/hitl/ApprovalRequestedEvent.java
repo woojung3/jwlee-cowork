@@ -7,5 +7,8 @@ package io.autocrypt.jwlee.cowork.core.hitl;
  * @param message The prompt question for the user
  * @param planDescription Details of what the agent intends to do
  */
-public record ApprovalRequestedEvent(String processId, String message, String planDescription) {
+public record ApprovalRequestedEvent(String processId, String message, String planDescription, boolean notifyTeams) {
+    public ApprovalRequestedEvent(String processId, String message, String planDescription) {
+        this(processId, message, planDescription, false);
+    }
 }

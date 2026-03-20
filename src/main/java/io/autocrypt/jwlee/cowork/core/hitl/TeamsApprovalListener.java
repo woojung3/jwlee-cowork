@@ -31,6 +31,10 @@ public class TeamsApprovalListener {
     @Async
     @EventListener
     public void onApprovalRequested(ApprovalRequestedEvent event) {
+        if (!event.notifyTeams()) {
+            return;
+        }
+
         if (webhookUrl == null || webhookUrl.isBlank()) {
             log.debug("app.teams.webhookUrl is not set. Skipping Teams notification.");
             return;
@@ -61,28 +65,63 @@ public class TeamsApprovalListener {
                 escapeJson(event.message()),
                 escapeJson(event.planDescription()));
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(webhookUrl))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(payload))
-                    .build();
-
-            httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                    .thenAccept(response -> {
-                        if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                            log.info("Successfully sent Teams notification for process: {}", event.processId());
-                        } else {
-                            log.warn("Failed to send Teams notification. Status: {}, Body: {}", response.statusCode(), response.body());
-                        }
-                    })
-                    .exceptionally(ex -> {
-                        log.error("Error sending Teams notification", ex);
-                        return null;
-                    });
-
+            sendTeamsMessage(payload, "process: " + event.processId());
         } catch (Exception e) {
             log.error("Failed to construct or send Teams notification", e);
         }
+    }
+
+    @Async
+    @EventListener
+    public void onNotificationRequested(NotificationEvent event) {
+        if (webhookUrl == null || webhookUrl.isBlank()) {
+            log.debug("app.teams.webhookUrl is not set. Skipping Teams notification.");
+            return;
+        }
+
+        try {
+            String payload = String.format("""
+                {
+                    "@type": "MessageCard",
+                    "@context": "http://schema.org/extensions",
+                    "themeColor": "00BFFF",
+                    "summary": "%s",
+                    "sections": [{
+                        "activityTitle": "📢 %s",
+                        "text": "%s",
+                        "markdown": true
+                    }]
+                }
+                """,
+                escapeJson(event.title()),
+                escapeJson(event.title()),
+                escapeJson(event.message()));
+
+            sendTeamsMessage(payload, "notification: " + event.title());
+        } catch (Exception e) {
+            log.error("Failed to construct or send Teams notification", e);
+        }
+    }
+
+    private void sendTeamsMessage(String payload, String contextInfo) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(webhookUrl))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(payload))
+                .build();
+
+        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> {
+                    if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                        log.info("Successfully sent Teams notification for {}", contextInfo);
+                    } else {
+                        log.warn("Failed to send Teams notification. Status: {}, Body: {}", response.statusCode(), response.body());
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.error("Error sending Teams notification", ex);
+                    return null;
+                });
     }
 
     private String escapeJson(String input) {

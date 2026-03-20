@@ -4,6 +4,7 @@ import com.embabel.chat.ChatSession;
 import com.embabel.chat.Chatbot;
 import com.embabel.chat.UserMessage;
 import com.embabel.agent.api.channel.MessageOutputChannelEvent;
+import io.autocrypt.jwlee.cowork.core.ui.TerminalSpinner;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -22,13 +23,13 @@ public class ChatbotCommand {
 
     private final Chatbot chatbot;
     private final Terminal terminal;
-    private final ChatbotSpinner spinner;
+    private final TerminalSpinner spinner;
     private ChatSession currentSession;
 
     public ChatbotCommand(Chatbot chatbot, Terminal terminal) {
         this.chatbot = chatbot;
         this.terminal = terminal;
-        this.spinner = new ChatbotSpinner(terminal);
+        this.spinner = new TerminalSpinner(terminal);
     }
 
     @ShellMethod(value = "Enter interactive chat mode.", key = {"ask-mode", "chat"})
