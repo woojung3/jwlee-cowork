@@ -137,14 +137,20 @@ public class WeeklyReportAgent {
             # 출력 지침:
             - 각 팀별로 충분한 깊이의 분석 의견을 작성하세요. (글자 수 제한 없음)
             - 결과는 TeamOpinionList 형식에 맞게 응답하세요.
+            - 주의: teamName 필드는 원본 팀명(EE팀, BE팀, PKI팀, PnC팀, FE팀, Eng팀)과 정확히 일치해야 합니다. 누락되는 팀이 없도록 하세요.
             """, TEAM_RNR_INFO, dataText, feedback != null ? "\n# 이전 피드백 반영 지시:\n" + feedback : "");
 
         TeamOpinionList opinionList = ai.withLlmByRole(role).withPromptContributor(analystPersona)
                 .creating(TeamOpinionList.class).fromPrompt(prompt);
 
         return extractedData.stream().map(d -> {
+            String coreName = d.teamName().replace("팀", "").trim().toUpperCase();
             String op = opinionList.opinions().stream()
-                    .filter(o -> o.teamName().equalsIgnoreCase(d.teamName()) || d.teamName().contains(o.teamName()))
+                    .filter(o -> {
+                        if (o.teamName() == null) return false;
+                        String oName = o.teamName().replace("팀", "").trim().toUpperCase();
+                        return oName.equals(coreName) || oName.startsWith(coreName);
+                    })
                     .map(TeamOpinion::opinion).findFirst().orElse("분석 의견을 생성하지 못했습니다.");
             return new TeamAnalysis(d.teamName(), d.currentOkr(), d.currentMeetingIssues(), d.currentJiraIssues(), op);
         }).toList();
