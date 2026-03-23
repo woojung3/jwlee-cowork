@@ -15,6 +15,7 @@ import com.embabel.agent.api.annotation.Action;
 import com.embabel.agent.api.annotation.Agent;
 import com.embabel.agent.api.annotation.State;
 import com.embabel.agent.api.common.ActionContext;
+import com.embabel.common.ai.model.LlmOptions;
 
 import io.autocrypt.jwlee.cowork.core.hitl.ApplicationContextHolder;
 import io.autocrypt.jwlee.cowork.core.hitl.NotificationEvent;
@@ -91,7 +92,7 @@ public class AnkiAgent {
         
         String sample = markdown.length() > 5000 ? markdown.substring(0, 5000) : markdown;
         
-        AnkiOverview overview = ctx.ai().withLlmByRole("simple")
+        AnkiOverview overview = ctx.ai().withLlm(LlmOptions.withLlmForRole("simple").withoutThinking())
                 .creating(AnkiOverview.class)
                 .fromPrompt(String.format("""
                         Analyze the following document and provide a high-level summary and 5-10 core technical terms.
@@ -101,13 +102,13 @@ public class AnkiAgent {
                         
                         # OUTPUT INSTRUCTIONS
                         1. Provide a summary for LLM reference.
-                        2. Extract 5-10 core terms. 
-                           - Format: "English Term (Korean Translation)"
-                           - <example>Confidentiality (기밀성)</example>
+                        2. Extract 5-10 core technical terms. 
+                           - **LANGUAGE**: English only.
+                           - **FORMAT**: Title Case (e.g., "Digital Signature", "Asymmetric Encryption").
                         """, sample));
 
         List<ScoredTerm> initialScored = overview.initialTerms().stream()
-                .map(t -> new ScoredTerm(t, 1.0))
+                .map(t -> new ScoredTerm(t.trim(), 1.0))
                 .collect(Collectors.toList());
 
         return new InitialState(req, wsPath, markdown, overview, initialScored);
@@ -142,16 +143,18 @@ public class AnkiAgent {
             final int chunkIdx = i;
             String chunk = chunks.get(i);
             
+            // Only include high-score terms (>= 0.8) in context, limited to last 50
             String existingTermsSample = allScoredTerms.stream()
-                    .skip(Math.max(0, allScoredTerms.size() - 50))
+                    .filter(st -> st.score() >= 0.8)
+                    .skip(Math.max(0, (long) (allScoredTerms.stream().filter(st -> st.score() >= 0.8).count() - 50)))
                     .map(ScoredTerm::term)
                     .collect(Collectors.joining(", "));
 
-            RawTerms newScoredTerms = ctx.ai().withLlmByRole("simple")
+            RawTerms newScoredTerms = ctx.ai().withLlm(LlmOptions.withLlmForRole("simple").withoutThinking())
                     .creating(RawTerms.class)
                     .fromPrompt(String.format("""
                             # TASK
-                            Extract technical terms, acronyms, and core concepts from this segment and assign an **Importance Score (0.0 to 1.0)** to each.
+                            Extract technical terms, acronyms, and core concepts from this segment and assign an **Importance Score (0.0 to 1.0)**.
 
                             # SCORING CRITERIA
                             - **0.9 - 1.0 (Critical):** Fundamental concepts, primary protocols, or architecture-defining terms.
@@ -159,27 +162,28 @@ public class AnkiAgent {
                             - **0.3 - 0.5 (Secondary):** Minor fields, specific parameters, or non-essential sub-components.
                             - **0.1 - 0.2 (Trivial):** Common IT words, repetitive boilerplate, or niche details.
 
-                            # DOCUMENT SUMMARY (Use this for scoring)
+                            # DOCUMENT SUMMARY (Use this for scoring context)
                             %s
 
                             # DOCUMENT SEGMENT (%d/%d)
                             %s
 
-                            # PREVIOUSLY EXTRACTED (Avoid repetition)
+                            # PREVIOUSLY EXTRACTED HIGH-IMPORTANCE TERMS (Do not repeat these)
                             %s
 
                             # INSTRUCTIONS
-                            1. Evaluate each term based on its contribution to mastering the document's overall context.
-                            2. Be objective. A technical document contains many terms, but not all are equally important for learning.
-                            3. Return a list of terms with their scores.
-                            4. Format: "English Term (Korean Translation)".
-                            5. <example>{"term": "Digital Signature (디지털 서명)", "score": 0.95}</example>
+                            1. Extract terms strictly in **English**.
+                            2. Use **Title Case** for all terms (e.g., "Transport Layer Security").
+                            3. Return a JSON list of terms with their scores.
+                            4. Do not include Korean translations in this phase.
+                            5. <example>{"term": "Digital Signature", "score": 0.95}</example>
                             """, state.overview().summary(), chunkIdx + 1, chunks.size(), chunk, existingTermsSample));            
             if (newScoredTerms.terms() != null) {
                 int addedCount = 0;
                 for (ScoredTerm st : newScoredTerms.terms()) {
-                    if (allScoredTerms.stream().noneMatch(e -> e.term().equalsIgnoreCase(st.term()))) {
-                        allScoredTerms.add(st);
+                    String normalizedTerm = st.term().trim();
+                    if (allScoredTerms.stream().noneMatch(e -> e.term().equalsIgnoreCase(normalizedTerm))) {
+                        allScoredTerms.add(new ScoredTerm(normalizedTerm, st.score()));
                         addedCount++;
                     }
                 }
@@ -221,7 +225,7 @@ public class AnkiAgent {
      */
     @Action
     public AnkiCardList finalizeDefinitions(RawTerms refinedTerms, ExtractedState state, ActionContext ctx) throws IOException {
-        logToTerminal(String.format("[Phase 4] Defining %d terms...", refinedTerms.terms().size()));
+        logToTerminal(String.format("[Phase 4] Translating and defining %d terms...", refinedTerms.terms().size()));
 
         var searchOps = localRagTools.getOrOpenInstance(state.workspaceName(), state.ragPath());
         var rag = new JsonSafeToolishRag("doc_knowledge", "Knowledge base from the source document", searchOps);
@@ -236,23 +240,27 @@ public class AnkiAgent {
             logToTerminal(String.format("[Phase 4] Defining batch %d-%d of %d...", i + 1, end, refinedTerms.terms().size()));
             
             try {
-                AnkiCardList definedBatch = ctx.ai().withLlmByRole("simple")
+                AnkiCardList definedBatch = ctx.ai().withLlm(LlmOptions.withLlmForRole("simple").withoutThinking())
                         .withReference(rag)
                         .creating(AnkiCardList.class)
                         .fromPrompt(String.format("""
                         # TASK
-                        Provide clear, concise Korean definitions for these terms.
+                        Provide Korean translations and concise Korean definitions for the provided English terms.
 
                         # DOCUMENT OVERVIEW
                         %s
                         
-                        # TERMS
+                        # ENGLISH TERMS
                         %s
                         
                         # INSTRUCTIONS
-                        1. Definition must be for Anki flashcards.
-                        2. Keep term: "English Term (Korean Translation)".
-                        3. <example>Term: Cryptographic Algorithm (암호화 알고리즘) -> Definition: 데이터를 안전하게 보호하기 위해 사용되는 수학적 절차.</example>
+                        1. For each term, provide a card with:
+                           - **term**: "English Term (Korean Translation)"
+                           - **definition**: A concise Korean explanation suitable for Anki flashcards.
+                        2. <example>
+                           Term: Digital Signature (디지털 서명)
+                           Definition: 메시지의 무결성과 발신자의 신원을 증명하기 위해 사용되는 전자적 서명 기술.
+                           </example>
                         """, state.overview().summary(), String.join(", ", batch)));
                 
                 if (definedBatch.cards() != null) {
