@@ -16,6 +16,7 @@ import com.embabel.agent.api.common.ActionContext;
 import com.embabel.agent.api.common.Ai;
 import com.embabel.agent.core.hitl.WaitFor;
 import com.embabel.agent.prompt.persona.RoleGoalBackstory;
+import io.autocrypt.jwlee.cowork.core.tools.PdfParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.autocrypt.jwlee.cowork.core.hitl.ApplicationContextHolder;
@@ -27,12 +28,12 @@ import io.autocrypt.jwlee.cowork.core.hitl.NotificationEvent;
 @Component
 public class TranslateAgent {
 
-    private final TranslatePdfParser parser;
+    private final PdfParser parser;
     private final TranslateWorkspace workspace;
     private final ObjectMapper objectMapper;
     private final RoleGoalBackstory translatorPersona;
 
-    public TranslateAgent(TranslatePdfParser parser, TranslateWorkspace workspace, ObjectMapper objectMapper) {
+    public TranslateAgent(PdfParser parser, TranslateWorkspace workspace, ObjectMapper objectMapper) {
         this.parser = parser;
         this.workspace = workspace;
         this.objectMapper = objectMapper;
@@ -134,7 +135,7 @@ public class TranslateAgent {
     }
 
     @State
-    public record ReviewGlossaryState(Path wsPath, DocumentContext context, TranslateWorkspace workspace, TranslatePdfParser parser, ObjectMapper objectMapper, RoleGoalBackstory translatorPersona) implements Stage {
+    public record ReviewGlossaryState(Path wsPath, DocumentContext context, TranslateWorkspace workspace, PdfParser parser, ObjectMapper objectMapper, RoleGoalBackstory translatorPersona) implements Stage {
         @Action
         public ApprovalDecision waitForFeedback(ActionContext ctx) {
             String processId = ctx.getProcessContext().getAgentProcess().getId();
@@ -194,7 +195,7 @@ public class TranslateAgent {
     }
 
     @State
-    public record FileGlossaryWaitState(Path wsPath, TranslateWorkspace.TranslateState state, TranslateWorkspace workspace, TranslatePdfParser parser, ObjectMapper objectMapper, RoleGoalBackstory translatorPersona) implements Stage {
+    public record FileGlossaryWaitState(Path wsPath, TranslateWorkspace.TranslateState state, TranslateWorkspace workspace, PdfParser parser, ObjectMapper objectMapper, RoleGoalBackstory translatorPersona) implements Stage {
         @Action
         public ApprovalDecision waitForFileEdit(ActionContext ctx) {
             String processId = ctx.getProcessContext().getAgentProcess().getId();
@@ -214,7 +215,7 @@ public class TranslateAgent {
                 
                 File pdfFile = new File(state.getOriginalPdfPath());
                 System.out.println("Parsing full PDF structure...");
-                List<TranslatePdfParser.PdfElement> elements = parser.parsePdf(pdfFile, wsPath.resolve("images"), context.boilerplatePatterns());
+                List<PdfParser.PdfElement> elements = parser.parsePdf(pdfFile, wsPath.resolve("images"));
                 
                 // Parser returns a single element with type 'markdown'
                 String fullMarkdown = elements.get(0).content();

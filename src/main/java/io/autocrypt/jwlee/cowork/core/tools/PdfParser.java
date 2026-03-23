@@ -1,4 +1,4 @@
-package io.autocrypt.jwlee.cowork.agents.translate;
+package io.autocrypt.jwlee.cowork.core.tools;
 
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -14,12 +14,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Universal PDF parsing tool for agents.
+ */
 @Component
-public class TranslatePdfParser {
+public class PdfParser {
 
     /**
-     * Extracts the text of the first N pages to be sent to the LLM for context extraction.
-     * Uses PDFBox for quick extraction of initial pages.
+     * Extracts the text of the first N pages for LLM context extraction.
      */
     public String extractInitialPagesForLlm(File pdfFile, int maxPages) throws IOException {
         try (PDDocument document = Loader.loadPDF(pdfFile)) {
@@ -31,7 +33,7 @@ public class TranslatePdfParser {
     }
 
     /**
-     * Parses the PDF using a Python script (PyMuPDF) and returns the full Markdown content.
+     * Parses the PDF using a Python script (PyMuPDF) and returns full Markdown content.
      */
     public String parsePdfToMarkdown(File pdfFile, Path imageOutputDir) throws IOException {
         ProcessBuilder pb = new ProcessBuilder(
@@ -57,13 +59,11 @@ public class TranslatePdfParser {
     }
 
     /**
-     * Compatibility method for TranslateAgent.
+     * Helper to wrap parsed markdown into elements.
      */
-    public List<PdfElement> parsePdf(File pdfFile, Path imageOutputDir, List<String> boilerplatePatterns) throws IOException {
+    public List<PdfElement> parsePdf(File pdfFile, Path imageOutputDir) throws IOException {
         String markdown = parsePdfToMarkdown(pdfFile, imageOutputDir);
         List<PdfElement> elements = new ArrayList<>();
-        // Wrap the whole markdown content as a single element of type "markdown".
-        // This is handled by TranslateAgent.chunkElements.
         elements.add(new PdfElement("markdown", markdown));
         return elements;
     }
