@@ -23,10 +23,11 @@ public class AnkiCommand {
         this.localRagTools = localRagTools;
     }
 
-    @ShellMethod(value = "Generate Anki cards from a document", key = "anki-gen")
+    @ShellMethod(value = "Generate Anki cards from a document (Full Process)", key = "anki-gen")
     public String generateAnki(
             @ShellOption(help = "Path to the document (PDF or Markdown)") String filePath,
-            @ShellOption(help = "Workspace/Deck name", defaultValue = "anki_default") String wsName) throws ExecutionException, InterruptedException {
+            @ShellOption(help = "Workspace/Deck name", defaultValue = "anki_default") String wsName,
+            @ShellOption(help = "Number of final cards to keep", defaultValue = "30") int maxCards) throws ExecutionException, InterruptedException {
         
         Path path = Paths.get(filePath);
         Path ragPath = Paths.get("output/anki/rag", wsName);
@@ -35,7 +36,7 @@ public class AnkiCommand {
         System.out.println("[System] Ingesting document into RAG for context...");
         localRagTools.ingestUrlAt(path.toString(), wsName, ragPath);
 
-        AnkiAgent.AnkiRequest request = new AnkiAgent.AnkiRequest(path, wsName, ragPath);
+        AnkiAgent.AnkiStartRequest request = new AnkiAgent.AnkiStartRequest(path, wsName, ragPath, maxCards);
 
         System.out.println("[System] Starting Anki Generation Agent for: " + filePath);
 
@@ -53,6 +54,32 @@ public class AnkiCommand {
             return "[System] Anki CSV generated: " + result.csvPath();
         } else {
             return "[System] Anki generation failed or was interrupted.";
+        }
+    }
+
+    @ShellMethod(value = "Resume Anki card generation from filtering phase", key = "anki-resume")
+    public String resumeAnki(
+            @ShellOption(help = "Workspace/Deck name") String wsName,
+            @ShellOption(help = "Number of final cards to keep", defaultValue = "30") int maxCards) throws ExecutionException, InterruptedException {
+
+        AnkiAgent.AnkiResumeRequest request = new AnkiAgent.AnkiResumeRequest(wsName, maxCards);
+
+        System.out.println("[System] Resuming Anki Generation for workspace: " + wsName);
+
+        AgentProcess process = AgentInvocation
+                .create(agentPlatform, AnkiAgent.AnkiResult.class)
+                .runAsync(request)
+                .get();
+
+        while (!process.getFinished()) {
+            Thread.sleep(1000);
+        }
+
+        AnkiAgent.AnkiResult result = process.resultOfType(AnkiAgent.AnkiResult.class);
+        if (result != null) {
+            return "[System] Anki CSV regenerated: " + result.csvPath();
+        } else {
+            return "[System] Anki resume failed or was interrupted.";
         }
     }
 }
