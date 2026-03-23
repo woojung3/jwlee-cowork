@@ -9,6 +9,7 @@ import com.embabel.agent.api.annotation.AchievesGoal;
 import com.embabel.agent.api.annotation.Action;
 import com.embabel.agent.api.annotation.Agent;
 import com.embabel.agent.api.common.ActionContext;
+import com.embabel.agent.api.common.Ai;
 import com.embabel.agent.api.common.workflow.loop.RepeatUntilAcceptableBuilder;
 import com.embabel.agent.api.common.workflow.loop.TextFeedback;
 
@@ -116,9 +117,9 @@ public class PresalesAgent {
     }
 
     /**
-     * Phase 2: Perform gap analysis and estimate effort using product specification RAG.
+     * Phase 2: Perform gap analysis and generate an internal technical review report.
      */
-    @AchievesGoal(description = "Gap analysis and customer report")
+    @AchievesGoal(description = "Internal Technical Review Report completed")
     @Action
     public AnalysisResult analyzeGapAndFinalize(GapAnalysisRequest req, ActionContext ctx) throws IOException {
         var productSearch = localRagTools.getOrOpenInstance("product-spec", req.productRagPath());
@@ -177,14 +178,13 @@ public class PresalesAgent {
                 .build()
                 .asSubProcess(ctx, String.class);
 
-        // 2. Normal AI Worker performs gap analysis and generates final report
+        // 2. Worker: Generate the final Internal Review Report
         String analysisPrompt = String.format("""
-            Analyze the CRS against the provided product context.
-            
-            # Tasks:
-            1. **Gap Analysis**: Categorize each requirement as 'Supported', 'Partially Supported', or 'Unsupported'.
-            2. **Effort Estimation**: Estimate M/M for gaps/customizations with technical justification.
-            3. **Customer Questions**: List ambiguous points.
+            Based on the product context and CRS, perform a deep technical gap analysis.
+            For each requirement, provide:
+            1. Support Status (Supported/Partially Supported/Unsupported)
+            2. Detailed technical justification.
+            3. Estimated development effort in Man-Months (M/M).
             
             # CRS:
             %s
@@ -193,27 +193,32 @@ public class PresalesAgent {
             %s
             """, req.crsContent(), productContext);
 
-        String analysis = normalAi.generateText(analysisPrompt);
+        String rawAnalysis = normalAi.generateText(analysisPrompt);
 
         String finalReportPrompt = String.format("""
-            Draft a professional final response to the customer in Korean.
+            You are the Head of Research reporting to the Business Unit (BU) Manager.
+            Convert the following analysis into a formal **Internal Technical Review Report** in Korean.
             
-            # Original Language: %s
-            # Analysis Result:
+            # SECTION STRUCTURE (REQUIRED):
+            1. **개요**: 프로젝트의 핵심 목표와 고객의 핵심 요구사항 요약.
+            2. **제품 현황 및 기능 비교**: Markdown 표 형식을 사용 (구분 | 요구 기능 | 지원 현황 | 분석 내용). 지원 현황은 '지원', '미지원', '부분 지원' 등으로 표기.
+            3. **주요 개발 항목 및 예상 공수**: 각 개발 항목별 예상 공수(M/M)와 구체적인 기술적 배경 설명.
+            4. **추가 확인 필요 사항**: 프로젝트 범위 확정 및 견적 산출을 위해 고객사 또는 사업부에 확인이 필요한 기술적/비즈니스적 리스트.
+            
+            # CONTEXT (Analysis Result):
             %s
             
-            # Instructions:
-            1. Summarize the proposal and highlight value.
-            2. Be professional and helpful.
-            3. Address clarifications politely.
-            4. Do NOT include detailed M/M unless necessary.
-            """, req.originalLanguage(), analysis);
+            # INSTRUCTIONS:
+            - Maintain a professional, objective, and analytical tone suitable for internal management.
+            - Do NOT draft an email to the customer. Focus on technical assessment and internal decision-making data.
+            - Ensure all M/M estimates from the context are clearly presented.
+            """, rawAnalysis);
 
         String finalReport = normalAi.generateText(finalReportPrompt);
 
-        String questionPrompt = "Extract ONLY the customer questions from the analysis result into a bulleted list: \n\n" + analysis;
+        String questionPrompt = "Extract ONLY the list of 'Additional Clarification Items' (추가 확인 필요 사항) from the report: \n\n" + finalReport;
         String questions = normalAi.generateText(questionPrompt);
 
-        return new AnalysisResult(analysis, questions, finalReport);
+        return new AnalysisResult(rawAnalysis, questions, finalReport);
     }
 }
