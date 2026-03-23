@@ -9,8 +9,9 @@ embabel:
     default-embedding-model: qwen3-embedding:latest
 
     llms:
-      cheapest: gpt-oss:120b
+      simple: gpt-oss:120b
       normal: gpt-oss:120b
+      performant: gpt-oss:120b
 
   agent:
     platform:

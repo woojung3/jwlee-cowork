@@ -44,8 +44,11 @@ export GEMINI_API_KEY="your-api-key"
 # 프로젝트 컴파일 및 테스트 (아키텍처 검증 포함)
 ./mvnw clean test
 
-# 인터랙티브 셸 모드 실행
+# 인터랙티브 셸 모드 실행 (기본: Gemini 프로파일)
 ./mvnw spring-boot:run
+
+# 인터랙티브 셸 모드 실행 (Ollama 프로파일)
+./mvnw spring-boot:run -Dspring-boot.run.profiles=ollama
 ```
 
 실행 후 `>` 프롬프트가 나타나면 명령어 입력을 대기합니다.
