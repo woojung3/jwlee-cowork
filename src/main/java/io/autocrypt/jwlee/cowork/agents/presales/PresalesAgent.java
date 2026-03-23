@@ -9,7 +9,6 @@ import com.embabel.agent.api.annotation.AchievesGoal;
 import com.embabel.agent.api.annotation.Action;
 import com.embabel.agent.api.annotation.Agent;
 import com.embabel.agent.api.common.ActionContext;
-import com.embabel.agent.api.common.Ai;
 import com.embabel.agent.api.common.workflow.loop.RepeatUntilAcceptableBuilder;
 import com.embabel.agent.api.common.workflow.loop.TextFeedback;
 
@@ -47,8 +46,8 @@ public class PresalesAgent {
         // 1. Gatherer-Critic Loop to collect sufficient technical context
         String techContext = RepeatUntilAcceptableBuilder
                 .returning(String.class)
-                .withMaxIterations(10)
-                .withScoreThreshold(0.8)
+                .withMaxIterations(3)
+                .withScoreThreshold(0.7)
                 .repeating(loopCtx -> {
                     var lastAttempt = loopCtx.lastAttempt();
                     String lastFindings = lastAttempt != null ? lastAttempt.getResult() : "No previous findings.";
@@ -131,8 +130,8 @@ public class PresalesAgent {
         // 1. Gatherer-Critic Loop to collect product capability information
         String productContext = RepeatUntilAcceptableBuilder
                 .returning(String.class)
-                .withMaxIterations(10)
-                .withScoreThreshold(0.8)
+                .withMaxIterations(3)
+                .withScoreThreshold(0.7)
                 .repeating(loopCtx -> {
                     var lastAttempt = loopCtx.lastAttempt();
                     String lastFindings = lastAttempt != null ? lastAttempt.getResult() : "No previous findings.";
