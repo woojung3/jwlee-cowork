@@ -63,7 +63,7 @@ public class AnkiAgent {
 
     public record AnkiCardList(List<AnkiTerm> cards) {}
 
-    public record AnkiResult(String csvPath) {}
+    public record AnkiResult(String csvPath, String summary, List<String> terms) {}
 
     @State
     public record InitialState(AnkiStartRequest request, Path wsPath, String fullMarkdown, AnkiOverview overview, List<ScoredTerm> accumulatedTerms) {}
@@ -279,9 +279,11 @@ public class AnkiAgent {
     public AnkiResult generateAnkiCsv(AnkiCardList cards, ExtractedState state) throws IOException {
         logToTerminal(String.format("[Phase 5] Saving %d cards to CSV...", cards.cards().size()));
 
+        List<String> termStrings = new ArrayList<>();
         StringBuilder csv = new StringBuilder();
         for (AnkiTerm card : cards.cards()) {
             csv.append(escapeCsv(card.term())).append(",").append(escapeCsv(card.definition())).append("\n");
+            termStrings.add(card.term());
         }
 
         String filename = String.format("anki/%s_cards_ko.csv", state.workspaceName());
@@ -295,7 +297,7 @@ public class AnkiAgent {
                 String.format("'%s' 문서에서 %d개의 카드가 생성되었습니다.", state.workspaceName(), cards.cards().size()))
         );
 
-        return new AnkiResult(savedPath);
+        return new AnkiResult(savedPath, state.overview().summary(), termStrings);
     }
 
     private List<String> splitText(String text, int chunkSize) {

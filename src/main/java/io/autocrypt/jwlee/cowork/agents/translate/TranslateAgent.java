@@ -1,16 +1,19 @@
 package io.autocrypt.jwlee.cowork.agents.translate;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
 import com.embabel.agent.api.annotation.AchievesGoal;
 import com.embabel.agent.api.annotation.Action;
 import com.embabel.agent.api.annotation.Agent;
+import com.embabel.agent.api.annotation.RunSubagent;
 import com.embabel.agent.api.annotation.State;
 import com.embabel.agent.api.common.ActionContext;
 import com.embabel.agent.api.common.Ai;
@@ -19,10 +22,12 @@ import com.embabel.agent.prompt.persona.RoleGoalBackstory;
 import com.embabel.common.ai.model.LlmOptions;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.autocrypt.jwlee.cowork.agents.anki.AnkiAgent;
 import io.autocrypt.jwlee.cowork.core.hitl.ApplicationContextHolder;
 import io.autocrypt.jwlee.cowork.core.hitl.ApprovalDecision;
 import io.autocrypt.jwlee.cowork.core.hitl.ApprovalRequestedEvent;
 import io.autocrypt.jwlee.cowork.core.hitl.NotificationEvent;
+import io.autocrypt.jwlee.cowork.core.tools.LocalRagTools;
 import io.autocrypt.jwlee.cowork.core.tools.PdfParser;
 
 @Agent(description = "PDF 전문 번역 에이전트")
@@ -32,12 +37,16 @@ public class TranslateAgent {
     private final PdfParser parser;
     private final TranslateWorkspace workspace;
     private final ObjectMapper objectMapper;
+    private final AnkiAgent ankiAgent;
+    private final LocalRagTools localRagTools;
     private final RoleGoalBackstory translatorPersona;
 
-    public TranslateAgent(PdfParser parser, TranslateWorkspace workspace, ObjectMapper objectMapper) {
+    public TranslateAgent(PdfParser parser, TranslateWorkspace workspace, ObjectMapper objectMapper, AnkiAgent ankiAgent, LocalRagTools localRagTools) {
         this.parser = parser;
         this.workspace = workspace;
         this.objectMapper = objectMapper;
+        this.ankiAgent = ankiAgent;
+        this.localRagTools = localRagTools;
         this.translatorPersona = new RoleGoalBackstory(
             "Senior Technical Translator",
             "Accurately translate technical documents from English to Korean while maintaining strict terminology and formatting.",
@@ -70,48 +79,86 @@ public class TranslateAgent {
     public interface Stage {}
 
     @Action
-    public Stage start(TranslateStartRequest req, Ai ai, ActionContext ctx) {
-        try {
-            Path wsPath = workspace.initWorkspace(req.workspaceName());
-            File pdfFile = new File(req.pdfPath());
+    public AnkiAgent.AnkiStartRequest start(TranslateStartRequest req, ActionContext ctx) throws IOException {
+        Path wsPath = workspace.initWorkspace(req.workspaceName());
+        
+        TranslateWorkspace.TranslateState state = new TranslateWorkspace.TranslateState();
+        state.setOriginalPdfPath(req.pdfPath());
+        state.setCurrentPhase(TranslateWorkspace.TranslateState.Phase.CONTEXT_EXTRACTION);
+        workspace.saveState(wsPath, state);
+
+        System.out.println("Ingesting document into RAG for glossary context...");
+        Path ragPath = wsPath.resolve("rag");
+        localRagTools.ingestUrlAt(req.pdfPath(), req.workspaceName(), ragPath);
+
+        System.out.println("Initiating glossary generation via AnkiAgent subagent (Target: 100 terms)...");
+        
+        // Prepare AnkiStartRequest for the subagent with 100 cards for deep glossary
+        return new AnkiAgent.AnkiStartRequest(
+            Path.of(req.pdfPath()),
+            req.workspaceName(),
+            ragPath,
+            100 
+        );
+    }
+
+    @Action
+    public AnkiAgent.AnkiResult runAnkiSubagent(AnkiAgent.AnkiStartRequest req) {
+        // Delegate work to AnkiAgent as a subagent
+        return RunSubagent.fromAnnotatedInstance(
+            ankiAgent,
+            AnkiAgent.AnkiResult.class
+        );
+    }
+
+    @Action
+    public Stage handleAnkiResult(AnkiAgent.AnkiResult result, TranslateStartRequest startReq, Ai ai) throws IOException {
+        Path wsPath = workspace.initWorkspace(startReq.workspaceName());
+        
+        System.out.println("Processing AnkiAgent result for translation context...");
+        
+        // Format terms as "Term (Translation); Term (Translation)" for the prompt
+        String formattedGlossary = result.terms().stream().collect(Collectors.joining("; "));
+        
+        String prompt = String.format("""
+            Based on the following document summary and key terminology, identify the Table of Contents (TOC) if present and common Boilerplate Patterns (headers, footers, etc.).
             
-            TranslateWorkspace.TranslateState state = new TranslateWorkspace.TranslateState();
-            state.setOriginalPdfPath(req.pdfPath());
-            state.setCurrentPhase(TranslateWorkspace.TranslateState.Phase.CONTEXT_EXTRACTION);
-            workspace.saveState(wsPath, state);
-
-            System.out.println("Extracting early pages for LLM context analysis...");
-            String initialText = parser.extractInitialPagesForLlm(pdfFile, 5);
+            # Summary:
+            %s
             
-            String prompt = String.format("""
-                You are an expert technical translator and domain specialist.
-                Analyze the following introductory pages of a technical document (e.g., ISO standards, technical manuals).
-                
-                # Task
-                1. Identify the core subject and context of the document.
-                2. Extract the Table of Contents (TOC) if present.
-                3. Generate a Glossary of key technical terms, mapping English terms to their standard Korean translations. Pay special attention to domain-specific terminology.
-                4. Identify 'Boilerplate Patterns': Look for repeating headers, footers, license texts, or copyright notices that appear as isolated text blocks across pages (not part of the main body text). Output them as a list of EXACT strings or regex patterns that match the ENTIRE block. DO NOT output overly generic terms (like just 'ISO') that might legitimately appear in the middle of a sentence.
-                
-                # Document Content:
-                %s
-                
-                # Output Format (JSON):
-                Provide the output matching the requested schema.
-                """, initialText);
+            # Key Terminology:
+            %s
+            
+            # Task:
+            1. Extract the Table of Contents (TOC) if present.
+            2. Identify 'Boilerplate Patterns' (repeating meta-text).
+            
+            # Output:
+            Provide DocumentContext matching the requested schema. Use the summary provided below.
+            """, result.summary(), formattedGlossary);
 
-            System.out.println("Generating glossary and context...");
-            DocumentContext docContext = ai.withLlmByRole("performant")
-                .withPromptContributor(translatorPersona)
-                .creating(DocumentContext.class).fromPrompt(prompt);
+        DocumentContext partialContext = ai.withLlm(LlmOptions.withLlmForRole("normal").withoutThinking())
+            .creating(DocumentContext.class).fromPrompt(prompt);
 
-            return new ReviewGlossaryState(wsPath, docContext, workspace, parser, objectMapper, translatorPersona);
-        } catch (Exception e) {
-            ApplicationContextHolder.getPublisher().publishEvent(
-                new NotificationEvent("번역 시작 실패", "초기 설정 또는 컨텍스트 추출 중 오류가 발생했습니다: " + e.getMessage())
-            );
-            throw new RuntimeException(e);
-        }
+        // Convert the terms list into the map expected by the translator
+        Map<String, String> glossaryMap = result.terms().stream().map(t -> {
+            int parenIndex = t.lastIndexOf("(");
+            if (parenIndex != -1 && t.endsWith(")")) {
+                String en = t.substring(0, parenIndex).trim();
+                String ko = t.substring(parenIndex + 1, t.length() - 1).trim();
+                return Map.entry(en, ko);
+            }
+            return Map.entry(t, t);
+        }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (v1, v2) -> v1));
+
+        DocumentContext docContext = new DocumentContext(
+            result.summary(),
+            partialContext.toc(),
+            glossaryMap,
+            partialContext.boilerplatePatterns()
+        );
+
+        return new ReviewGlossaryState(wsPath, docContext, workspace, parser, objectMapper, translatorPersona);
     }
 
     @Action
@@ -145,7 +192,12 @@ public class TranslateAgent {
             preview.append("**요약(Summary):**\n").append(context.summary()).append("\n\n");
             preview.append("**용어집(Glossary) 초안:**\n");
             if (context.glossary() != null) {
-                context.glossary().forEach((k, v) -> preview.append("- ").append(k).append(": ").append(v).append("\n"));
+                context.glossary().entrySet().stream()
+                    .limit(50) // Show only first 50 for preview
+                    .forEach(e -> preview.append("- ").append(e.getKey()).append(": ").append(e.getValue()).append("\n"));
+                if (context.glossary().size() > 50) {
+                    preview.append("- ... (and ").append(context.glossary().size() - 50).append(" more)\n");
+                }
             }
             preview.append("\n**보일러플레이트 패턴(Boilerplate):**\n");
             if (context.boilerplatePatterns() != null) {
