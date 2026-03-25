@@ -14,6 +14,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
@@ -34,12 +36,33 @@ public class LuceneRagConfiguration {
             return null;
         }
 
+        Path indexPath = Paths.get(luceneIndexDir);
+        if (Files.exists(indexPath) && Files.isDirectory(indexPath)) {
+            try (var stream = Files.list(indexPath)) {
+                boolean hasSegments = stream.anyMatch(p -> p.getFileName().toString().startsWith("segments"));
+                if (!hasSegments) {
+                    // Invalid index (e.g., empty dir or interrupted initialization), clear it to allow fresh start
+                    deleteRecursively(indexPath);
+                }
+            }
+        }
+
         return LuceneSearchOperations
                 .withName("rca-knowledge")
                 .withEmbeddingService(embeddingService)
-                .withIndexPath(Paths.get(luceneIndexDir))
+                .withIndexPath(indexPath)
                 .withChunkTransformer(AddTitlesChunkTransformer.INSTANCE)
                 .buildAndLoadChunks();
+    }
+
+    private void deleteRecursively(Path path) throws IOException {
+        if (Files.exists(path)) {
+            try (java.util.stream.Stream<Path> walk = Files.walk(path)) {
+                walk.sorted(java.util.Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .forEach(java.io.File::delete);
+            }
+        }
     }
 
     @Bean(name = "luceneRagTool")

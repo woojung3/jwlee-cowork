@@ -6,3 +6,8 @@ spring:
       enabled: true
     context:
       close: true
+embabel:
+  agent:
+    shell:
+        interactive:
+          enabled: false

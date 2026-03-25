@@ -34,11 +34,21 @@ embabel:
           backoff-millis: 6000
           backoff-multiplier: 1.5
           backoff-max-interval: 180000
+    shell:
+        redirect-log-to-file: true
+        web-application-type: none
+        command:
+          exit-enabled: true
+          quit-enabled: true
+        interactive:
+          enabled: true
+          history-enabled: true
     rag:
       lucene:
         dir: target/lucene-index
       import:
         dir: knowledge
+
 
 presentation:
   output:

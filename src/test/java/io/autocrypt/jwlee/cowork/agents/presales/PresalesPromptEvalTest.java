@@ -10,18 +10,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.test.context.ActiveProfiles;
-
 import com.embabel.agent.api.common.Ai;
-import com.embabel.agent.test.integration.EmbabelMockitoIntegrationTest;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.autocrypt.jwlee.cowork.core.eval.ModelGrader;
 import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
 
-@ActiveProfiles({"gemini", "cron"})
-public class PresalesPromptEvalTest extends EmbabelMockitoIntegrationTest {
+import io.autocrypt.jwlee.cowork.BaseIntegrationTest;
+
+public class PresalesPromptEvalTest extends BaseIntegrationTest {
 
     private static final Logger log = LoggerFactory.getLogger(PresalesPromptEvalTest.class);
 

@@ -1,0 +1,15 @@
+spring:
+  shell:
+    interactive:
+      enabled: false
+    noninteractive:
+      enabled: false
+    context:
+      close: false # 테스트 중 컨텍스트가 닫히는 것을 방지
+
+embabel:
+  agent:
+    shell:
+      interactive:
+        enabled: false # Embabel의 자체 JLine 터미널 차단
+      redirect-log-to-file: false
