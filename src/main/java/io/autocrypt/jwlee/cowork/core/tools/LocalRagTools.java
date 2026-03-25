@@ -41,6 +41,26 @@ public class LocalRagTools {
     }
 
     /**
+     * Gets an existing Lucene instance or creates a new one in-memory.
+     */
+    public synchronized LuceneSearchOperations getOrOpenMemoryInstance(String ragName) throws IOException {
+        String key = "mem:" + ragName;
+        if (activeInstances.containsKey(key)) {
+            return activeInstances.get(key);
+        }
+
+        var embeddingService = modelProvider.getEmbeddingService(ModelSelectionCriteria.getAuto());
+        var lucene = LuceneSearchOperations
+                .withName(ragName)
+                .withEmbeddingService(embeddingService)
+                .withChunkTransformer(AddTitlesChunkTransformer.INSTANCE)
+                .buildAndLoadChunks();
+
+        activeInstances.put(key, lucene);
+        return lucene;
+    }
+
+    /**
      * Gets an existing Lucene instance or creates a new one at the default location.
      */
     public synchronized LuceneSearchOperations getOrOpenInstance(String ragName) throws IOException {
@@ -89,6 +109,26 @@ public class LocalRagTools {
             } catch (Exception e) {
                 logger.error("Error closing Lucene instance at {}", indexPath, e);
             }
+        }
+    }
+
+    /**
+     * Ingests a URL or file into an in-memory RAG index.
+     */
+    public String ingestUrlToMemory(String location, String ragName) {
+        try {
+            var uri = location.startsWith("http://") || location.startsWith("https://")
+                    ? location
+                    : Path.of(location).toAbsolutePath().toUri().toString();
+
+            var lucene = getOrOpenMemoryInstance(ragName);
+            var ingested = NeverRefreshExistingDocumentContentPolicy.INSTANCE
+                    .ingestUriIfNeeded(lucene, new TikaHierarchicalContentReader(), uri);
+
+            return ingested != null ? "SUCCESS: Ingested document ID " + ingested.getId() : "Document already exists.";
+        } catch (Exception e) {
+            logger.error("In-memory ingestion failed for {} in {}", location, ragName, e);
+            return "ERROR: In-memory ingestion failed: " + e.getMessage();
         }
     }
 

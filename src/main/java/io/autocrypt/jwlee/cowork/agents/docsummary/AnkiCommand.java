@@ -33,12 +33,11 @@ public class AnkiCommand {
             @ShellOption(help = "Number of final cards to keep", defaultValue = "30") int maxCards) throws ExecutionException, InterruptedException, IOException {
         
         Path path = Paths.get(filePath);
-        Path ragPath = Paths.get("output/anki/rag", wsName);
 
-        System.out.println("[System] Ingesting document into RAG for context...");
-        localRagTools.ingestUrlAt(path.toString(), wsName, ragPath);
+        System.out.println("[System] Ingesting document into in-memory RAG for context...");
+        localRagTools.ingestUrlToMemory(path.toString(), wsName);
 
-        DocSummaryAgent.DocSummaryRequest request = new DocSummaryAgent.DocSummaryRequest(path, wsName, ragPath, maxCards);
+        DocSummaryAgent.DocSummaryRequest request = new DocSummaryAgent.DocSummaryRequest(path, wsName, maxCards);
 
         System.out.println("[System] Starting Document Summary Agent for: " + filePath);
 

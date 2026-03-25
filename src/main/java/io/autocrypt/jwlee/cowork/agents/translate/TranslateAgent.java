@@ -84,16 +84,14 @@ public class TranslateAgent {
         state.setCurrentPhase(TranslateWorkspace.TranslateState.Phase.CONTEXT_EXTRACTION);
         workspace.saveState(wsPath, state);
 
-        System.out.println("Ingesting document into RAG for glossary context...");
-        Path ragPath = wsPath.resolve("rag");
-        localRagTools.ingestUrlAt(req.pdfPath(), req.workspaceName(), ragPath);
+        System.out.println("Ingesting document into in-memory RAG for glossary context...");
+        localRagTools.ingestUrlToMemory(req.pdfPath(), req.workspaceName());
 
         System.out.println("Initiating glossary generation via DocSummaryAgent subagent (Target: 100 terms)...");
         
         return new DocSummaryAgent.DocSummaryRequest(
             Path.of(req.pdfPath()),
             req.workspaceName(),
-            ragPath,
             100 
         );
     }

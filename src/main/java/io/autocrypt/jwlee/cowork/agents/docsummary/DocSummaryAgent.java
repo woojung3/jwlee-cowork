@@ -48,7 +48,7 @@ public class DocSummaryAgent {
 
     // --- DTOs ---
 
-    public record DocSummaryRequest(Path filePath, String workspaceName, Path ragPath, int maxTerms) {}
+    public record DocSummaryRequest(Path filePath, String workspaceName, int maxTerms) {}
     public record DocSummaryResumeRequest(String workspaceName, int maxTerms) {}
 
     public record DocSummaryOverview(String summary, List<String> initialTerms) {}
@@ -67,7 +67,7 @@ public class DocSummaryAgent {
     public record InitialState(DocSummaryRequest request, Path wsPath, String fullMarkdown, DocSummaryOverview overview, List<ScoredTerm> accumulatedTerms) {}
 
     @State
-    public record ExtractedState(String workspaceName, Path wsPath, Path ragPath, int maxTerms, String fullMarkdown, DocSummaryOverview overview, List<ScoredTerm> finalTerms) {}
+    public record ExtractedState(String workspaceName, Path wsPath, int maxTerms, String fullMarkdown, DocSummaryOverview overview, List<ScoredTerm> finalTerms) {}
 
     // --- Actions ---
 
@@ -115,7 +115,7 @@ public class DocSummaryAgent {
         logToTerminal("Resuming from workspace: " + wsPath);
         
         ExtractedState saved = workspace.loadState(wsPath);
-        return new ExtractedState(saved.workspaceName(), saved.wsPath(), saved.ragPath(), 
+        return new ExtractedState(saved.workspaceName(), saved.wsPath(), 
                                   req.maxTerms(), saved.fullMarkdown(), saved.overview(), saved.finalTerms());
     }
 
@@ -180,7 +180,7 @@ public class DocSummaryAgent {
         }
 
         ExtractedState finalState = new ExtractedState(
-                state.request().workspaceName(), state.wsPath(), state.request().ragPath(), 
+                state.request().workspaceName(), state.wsPath(), 
                 state.request().maxTerms(), state.fullMarkdown(), state.overview(), allScoredTerms);
         
         workspace.saveAllTerms(state.wsPath(), allScoredTerms);
@@ -202,7 +202,7 @@ public class DocSummaryAgent {
     public TermList finalizeDefinitions(RawTerms refinedTerms, ExtractedState state, ActionContext ctx) throws IOException {
         logToTerminal(String.format("Defining %d terms using RAG...", refinedTerms.terms().size()));
 
-        var searchOps = localRagTools.getOrOpenInstance(state.workspaceName(), state.ragPath());
+        var searchOps = localRagTools.getOrOpenMemoryInstance(state.workspaceName());
         var rag = new JsonSafeToolishRag("doc_knowledge", "Knowledge base from the source document", searchOps);
 
         List<DefinedTerm> finalTerms = new ArrayList<>();
