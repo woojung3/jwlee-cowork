@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.jline.terminal.Terminal;
 import org.springframework.stereotype.Component;
 
 import com.embabel.agent.api.annotation.AchievesGoal;
@@ -19,6 +18,7 @@ import com.embabel.agent.api.common.ActionContext;
 import com.embabel.common.ai.model.LlmOptions;
 
 import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
+import io.autocrypt.jwlee.cowork.core.tools.CoworkLogger;
 import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
 import io.autocrypt.jwlee.cowork.core.tools.CoreWorkspaceProvider;
 import io.autocrypt.jwlee.cowork.core.tools.LocalRagTools;
@@ -33,22 +33,21 @@ public class DocSummaryAgent {
     private final CoreFileTools fileTools;
     private final LocalRagTools localRagTools;
     private final DocSummaryWorkspace workspace;
-    private final Terminal terminal;
+    private final CoworkLogger logger;
     private final PromptProvider promptProvider;
 
     public DocSummaryAgent(PdfParser pdfParser, CoreFileTools fileTools, LocalRagTools localRagTools, 
-                     DocSummaryWorkspace workspace, Terminal terminal, PromptProvider promptProvider) {
+                     DocSummaryWorkspace workspace, CoworkLogger logger, PromptProvider promptProvider) {
         this.pdfParser = pdfParser;
         this.fileTools = fileTools;
         this.localRagTools = localRagTools;
         this.workspace = workspace;
-        this.terminal = terminal;
+        this.logger = logger;
         this.promptProvider = promptProvider;
     }
 
     private void logToTerminal(String message) {
-        terminal.writer().println("[DocSummaryAgent] " + message);
-        terminal.writer().flush();
+        logger.info("DocSummary", message);
     }
 
     // --- DTOs ---

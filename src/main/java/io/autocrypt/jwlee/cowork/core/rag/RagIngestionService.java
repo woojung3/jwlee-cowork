@@ -1,18 +1,20 @@
 package io.autocrypt.jwlee.cowork.core.rag;
 
-import com.embabel.agent.rag.ingestion.policy.NeverRefreshExistingDocumentContentPolicy;
-import com.embabel.agent.rag.service.SearchOperations;
-import com.embabel.agent.rag.store.ChunkingContentElementRepository;
-import com.embabel.agent.rag.ingestion.TikaHierarchicalContentReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Optional;
+import java.util.stream.Stream;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.stream.Stream;
+import com.embabel.agent.rag.ingestion.TikaHierarchicalContentReader;
+import com.embabel.agent.rag.ingestion.policy.NeverRefreshExistingDocumentContentPolicy;
+import com.embabel.agent.rag.service.SearchOperations;
+import com.embabel.agent.rag.store.ChunkingContentElementRepository;
 
 @Service
 public class RagIngestionService {
@@ -20,9 +22,12 @@ public class RagIngestionService {
     private static final Logger logger = LoggerFactory.getLogger(RagIngestionService.class);
     private final ChunkingContentElementRepository ragStore;
 
-    public RagIngestionService(@Qualifier("luceneSearch") SearchOperations ragStore) {
+    public RagIngestionService(@Qualifier("luceneSearch") Optional<SearchOperations> ragStore) {
         // LuceneSearchOperations implements both SearchOperations and ChunkingContentElementRepository
-        this.ragStore = (ChunkingContentElementRepository) ragStore;
+        this.ragStore = ragStore
+            .map(s -> (ChunkingContentElementRepository) s)
+            .orElse(null);
+
     }
 
     /**
@@ -40,6 +45,11 @@ public class RagIngestionService {
      * Parses a local file (PDF, MD, etc.) and saves it to the Lucene vector database.
      */
     public void ingestFile(Path filePath) {
+        if (ragStore == null) {
+            logger.warn("RAG store not available, skipping ingestion: {}", filePath);
+            return;
+        }
+
         String uri = filePath.toUri().toString();
         
         // Use the policy to only ingest if not already present
@@ -59,6 +69,11 @@ public class RagIngestionService {
      * Recursively walks through a directory and ingests all readable files.
      */
     private void ingestDirectory(Path dirPath) {
+        if (ragStore == null) {
+            logger.warn("RAG store not available, skipping directory ingestion: {}", dirPath);
+            return;
+        }
+
         logger.info("Scanning directory for ingestion: {}", dirPath.toAbsolutePath());
         try (Stream<Path> paths = Files.walk(dirPath)) {
             paths.filter(Files::isRegularFile)

@@ -1,12 +1,11 @@
 package io.autocrypt.jwlee.cowork.agents.chatbot;
 
 import com.embabel.agent.api.annotation.Action;
-import com.embabel.agent.api.annotation.Agent;
+import com.embabel.agent.api.annotation.EmbabelComponent;
 import com.embabel.agent.api.annotation.LlmTool;
 import com.embabel.agent.api.common.ActionContext;
 import com.embabel.agent.api.common.Ai;
 import com.embabel.agent.prompt.persona.RoleGoalBackstory;
-import com.embabel.agent.rag.tools.ToolishRag;
 import com.embabel.agent.rag.tools.TryHyDE;
 import io.autocrypt.jwlee.cowork.core.workaround.JsonSafeToolishRag;
 import com.embabel.chat.Conversation;
@@ -19,7 +18,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.List;
 
-@Agent(description = "Main Orchestrator Agent for general chat and task coordination")
+@EmbabelComponent
 @Component
 public class ChatbotAgent {
 

@@ -8,10 +8,10 @@ import com.embabel.agent.api.common.Ai;
 
 import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
 import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
+import io.autocrypt.jwlee.cowork.core.tools.CoworkLogger;
 import io.autocrypt.jwlee.cowork.core.tools.GitTools;
 import io.autocrypt.jwlee.cowork.core.tools.GoogleServiceTools;
 import io.autocrypt.jwlee.cowork.core.tools.ObsidianTools;
-import org.jline.terminal.Terminal;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -35,25 +35,24 @@ public class ObsidianAgent {
     private final ObsidianTools obsidianTools;
     private final GoogleServiceTools googleServiceTools;
     private final CoreFileTools fileTools;
-    private final Terminal terminal;
+    private final CoworkLogger logger;
     private final PromptProvider promptProvider;
 
     private static final DateTimeFormatter DAILY_FORMAT = DateTimeFormatter.ofPattern("'🗓'yyyy-MM-dd");
     private static final DateTimeFormatter WEEKLY_FORMAT = DateTimeFormatter.ofPattern("'🗓'yyyy-'W'ww");
 
     public ObsidianAgent(GitTools gitTools, ObsidianTools obsidianTools, GoogleServiceTools googleServiceTools, 
-                        CoreFileTools fileTools, Terminal terminal, PromptProvider promptProvider) {
+                        CoreFileTools fileTools, CoworkLogger logger, PromptProvider promptProvider) {
         this.gitTools = gitTools;
         this.obsidianTools = obsidianTools;
         this.googleServiceTools = googleServiceTools;
         this.fileTools = fileTools;
-        this.terminal = terminal;
+        this.logger = logger;
         this.promptProvider = promptProvider;
     }
 
     private void log(String message) {
-        terminal.writer().println("[ObsidianAgent] " + message);
-        terminal.writer().flush();
+        logger.info("Obsidian", message);
     }
 
     @AchievesGoal(description = "Daily note created")

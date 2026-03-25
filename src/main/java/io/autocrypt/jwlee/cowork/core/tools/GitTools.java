@@ -1,12 +1,5 @@
 package io.autocrypt.jwlee.cowork.core.tools;
 
-import com.embabel.agent.api.annotation.LlmTool;
-import org.jline.terminal.Terminal;
-import org.jline.utils.AttributedString;
-import org.jline.utils.AttributedStyle;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +9,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import com.embabel.agent.api.annotation.LlmTool;
+
 /**
  * Git operations for managing the Obsidian vault.
  */
@@ -24,14 +22,14 @@ public class GitTools {
 
     private final String vaultPath;
     private final String repoUrl;
-    private final Terminal terminal;
+    private final CoworkLogger logger;
 
     public GitTools(@Value("${app.obsidian.vault-path}") String vaultPath,
                     @Value("${app.obsidian.repo-url}") String repoUrl,
-                    Terminal terminal) {
+                    CoworkLogger logger) {
         this.vaultPath = vaultPath;
         this.repoUrl = repoUrl;
-        this.terminal = terminal;
+        this.logger = logger;
     }
 
     @LlmTool(description = "Clones the Obsidian vault if it doesn't exist.")
@@ -82,14 +80,10 @@ public class GitTools {
     }
 
     private void logInfo(String message) {
-        terminal.writer().println(new AttributedString("Git: " + message, 
-                AttributedStyle.DEFAULT.foreground(AttributedStyle.CYAN)).toAnsi());
-        terminal.writer().flush();
+        logger.info("Git", message);
     }
 
     private void logError(String message) {
-        terminal.writer().println(new AttributedString("Git Error: " + message, 
-                AttributedStyle.DEFAULT.foreground(AttributedStyle.RED)).toAnsi());
-        terminal.writer().flush();
+        logger.error("Git", message);
     }
 }

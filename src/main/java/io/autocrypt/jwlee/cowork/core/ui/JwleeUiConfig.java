@@ -1,5 +1,6 @@
 package io.autocrypt.jwlee.cowork.core.ui;
 
+import java.util.Optional;
 import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStyle;
@@ -40,14 +41,15 @@ public class JwleeUiConfig {
      */
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public ApplicationRunner jwleeBannerRunner(Terminal terminal) {
-        return args -> {
-            var writer = terminal.writer();
+    public ApplicationRunner jwleeBannerRunner(Optional<Terminal> terminal) {
+        return args -> terminal.ifPresent(t -> {
+            var writer = t.writer();
+            if (writer == null) return;
+
             writer.println(); // Add an empty line before the logo
 
             // ANSI Styles
             AttributedStyle logoStyle = AttributedStyle.DEFAULT.foreground(AttributedStyle.MAGENTA).bold();
-            AttributedStyle infoStyle = AttributedStyle.DEFAULT.foreground(AttributedStyle.WHITE);
 
             // 1. ASCII Logo & Title
             writer.println(new AttributedString("  ▝▜▄     ", logoStyle).toAnsi() + title + " v" + version);
@@ -60,10 +62,10 @@ public class JwleeUiConfig {
             writer.println(greeting);
             
             // 3. Horizontal Line (hline)
-            drawHorizontalLine(terminal);
+            drawHorizontalLine(t);
             
             writer.flush();
-        };
+        });
     }
 
     private void drawHorizontalLine(Terminal terminal) {

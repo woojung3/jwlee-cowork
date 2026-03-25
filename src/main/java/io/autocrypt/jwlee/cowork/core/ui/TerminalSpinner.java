@@ -1,32 +1,34 @@
 package io.autocrypt.jwlee.cowork.core.ui;
 
+import java.util.Optional;
+
 import org.jline.terminal.Terminal;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TerminalSpinner {
     private static final String[] FRAMES = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
-    private final Terminal terminal;
-    private final AtomicBoolean running = new AtomicBoolean(false);
+    private final Optional<Terminal> terminal;
+    private volatile boolean running = false;
     private Thread thread;
 
-    public TerminalSpinner(Terminal terminal) {
+    public TerminalSpinner(Optional<Terminal> terminal) {
         this.terminal = terminal;
     }
 
     public void start(String message) {
-        if (running.get()) return;
-        running.set(true);
+        if (terminal == null) return;
+        if (running) return;
+        running = true;
         thread = new Thread(() -> {
             int i = 0;
-            try {
-                while (running.get()) {
-                    terminal.writer().print("\r" + FRAMES[i % FRAMES.length] + " " + message);
-                    terminal.writer().flush();
+            while (running) {
+                try {
+                    terminal.get().writer().print("\r" + FRAMES[i % FRAMES.length] + " " + message);
+                    terminal.get().writer().flush();
+                    Thread.sleep(100);
                     i++;
-                    Thread.sleep(80);
+                } catch (InterruptedException e) {
+                    break;
                 }
-            } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
             }
         });
         thread.setDaemon(true);
@@ -34,16 +36,16 @@ public class TerminalSpinner {
     }
 
     public void stop() {
-        running.set(false);
+        if (terminal == null) return;
+        running = false;
         if (thread != null) {
             try {
-                thread.join(500);
+                thread.join();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
-        // Clear the spinner line
-        terminal.writer().print("\r" + " ".repeat(40) + "\r");
-        terminal.writer().flush();
+        terminal.get().writer().print("\r" + " ".repeat(40) + "\r");
+        terminal.get().writer().flush();
     }
 }

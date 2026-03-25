@@ -1,17 +1,19 @@
 package io.autocrypt.jwlee.cowork.core.tools;
 
-import com.embabel.agent.api.annotation.LlmTool;
-import org.jline.terminal.Terminal;
-import org.jline.utils.AttributedString;
-import org.jline.utils.AttributedStyle;
-import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.springframework.stereotype.Component;
+
+import com.embabel.agent.api.annotation.LlmTool;
 
 /**
  * Core file manipulation tools for agents, inspired by Gemini CLI.
@@ -20,10 +22,8 @@ import java.util.stream.Stream;
 public class CoreFileTools {
 
     private static final long MAX_FILE_SIZE = 500 * 1024; // 500KB safety limit
-    private final Terminal terminal;
 
-    public CoreFileTools(Terminal terminal) {
-        this.terminal = terminal;
+    public CoreFileTools() {
     }
 
     public record FileResult(String path, String content, String status) {
@@ -75,11 +75,7 @@ public class CoreFileTools {
         if (filePath.getParent() != null) Files.createDirectories(filePath.getParent());
         Files.writeString(filePath, content, StandardCharsets.UTF_8);
         
-        terminal.writer().println(new AttributedString("✔ Content saved to: " + filePath, 
-                AttributedStyle.DEFAULT.foreground(AttributedStyle.GREEN)).toAnsi());
-        terminal.writer().flush();
-        
-        return filePath.toString();
+        return "Content saved to: " + filePath.toString();
     }
 
     @LlmTool(description = "Lists files in a directory. Returns a list of names.")
