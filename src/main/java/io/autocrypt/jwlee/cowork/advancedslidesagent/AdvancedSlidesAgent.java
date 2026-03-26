@@ -70,14 +70,16 @@ public class AdvancedSlidesAgent {
         String slideGuidelines = guidelinesResult.status().equals("SUCCESS") ? guidelinesResult.content() : "";
 
         // 2. Call LLM to generate markdown
-        SlideMarkdownRaw rawOutput = ai.withLlmByRole("performant")
+        String markdownContent = ai.withLlmByRole("performant")
                 .rendering("agents/advancedslides/generate-markdown")
-                .createObject(SlideMarkdownRaw.class, Map.of(
+                .generateText(Map.of(
                         "sourceMaterial", state.request().sourceMaterial(),
                         "instructions", state.request().instructions(),
                         "outline", state.plan().outline(),
                         "slideGuidelines", slideGuidelines
                 ));
+
+        SlideMarkdownRaw rawOutput = new SlideMarkdownRaw(markdownContent);
 
         // 3. Resolve export directory
         Path exportDir = workspaceProvider.getSubPath("AdvancedSlidesAgent", state.request().workspaceId(), SubCategory.EXPORT);
