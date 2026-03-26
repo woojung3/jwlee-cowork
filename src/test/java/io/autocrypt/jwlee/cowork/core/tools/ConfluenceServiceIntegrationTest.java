@@ -49,4 +49,29 @@ class ConfluenceServiceIntegrationTest extends BaseIntegrationTest {
         assertThat(result.content()).isNotNull();
         assertThat(result.content()).isNotEmpty();
     }
+
+    @Test
+    void searchForRag_realServerTest() {
+        // Given
+        ConfluenceService.RagSearchRequest request = new ConfluenceService.RagSearchRequest(
+                "조직 OKR", // keyword
+                "회고",      // excludeKeyword
+                "2025-01-01",// fromDate
+                3            // limit
+        );
+
+        // When
+        java.util.List<ConfluenceService.ConfluencePageInfo> results = confluenceService.searchForRag(request);
+
+        // Then
+        System.out.println("====== [RESULT] RAG Search Results Count: " + results.size() + " ======");
+        for (int i = 0; i < results.size(); i++) {
+            ConfluenceService.ConfluencePageInfo info = results.get(i);
+            System.out.println(String.format("[%d] Title: %s (Length: %d)", i + 1, info.title(), info.content().length()));
+        }
+
+        assertThat(results).isNotNull();
+        assertThat(results).isNotEmpty();
+        assertThat(results.size()).isLessThanOrEqualTo(3);
+    }
 }

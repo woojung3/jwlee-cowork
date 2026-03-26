@@ -162,4 +162,63 @@ public class RealConfluenceService implements ConfluenceService {
             return "";
         }
     }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<ConfluencePageInfo> searchForRag(RagSearchRequest request) {
+        if (request == null || request.keyword() == null || request.keyword().isBlank()) {
+            return List.of();
+        }
+
+        int limit = request.limit() > 0 ? request.limit() : 3;
+        if (limit > 5) limit = 5; // LLM 토큰 보호를 위해 최대 5개로 강제
+
+        // 1. 기본 검색 조건 (스페이스 한정 + 페이지 타입 + 텍스트 키워드 검색)
+        StringBuilder cqlBuilder = new StringBuilder();
+        cqlBuilder.append("type = page AND space = \"").append(spaceKey).append("\"");
+        cqlBuilder.append(" AND text ~ \"\\\"").append(request.keyword()).append("\\\"\"");
+
+        // 2. 제외 키워드 (선택)
+        if (request.excludeKeyword() != null && !request.excludeKeyword().isBlank()) {
+            cqlBuilder.append(" AND text !~ \"\\\"").append(request.excludeKeyword()).append("\\\"\"");
+        }
+
+        // 3. 날짜 필터 (선택) - 최신 정보 검색을 위한 시작일
+        if (request.fromDate() != null && !request.fromDate().isBlank()) {
+            cqlBuilder.append(" AND lastModified >= \"").append(request.fromDate()).append("\"");
+        }
+
+        // 최신순 정렬
+        cqlBuilder.append(" order by lastModified desc");
+
+        String url = baseUrl + "/rest/api/content/search?cql=" + cqlBuilder.toString() + "&limit=" + limit;
+        HttpEntity<String> entity = new HttpEntity<>(createAuthHeaders());
+        
+        List<ConfluencePageInfo> resultPages = new ArrayList<>();
+
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+            Map<String, Object> responseBody = response.getBody();
+            if (responseBody == null) return List.of();
+
+            List<Map<String, Object>> results = (List<Map<String, Object>>) responseBody.get("results");
+            if (results == null || results.isEmpty()) return List.of();
+
+            for (Map<String, Object> r : results) {
+                String pageId = (String) r.get("id");
+                String title = (String) r.get("title");
+                
+                // 찾은 페이지의 본문을 정제하여 리스트에 추가 (개별 페이지마다 cleanHtmlForLlm이 호출됨)
+                String cleanedContent = getPageStorage(pageId);
+                if (cleanedContent != null && !cleanedContent.isEmpty()) {
+                    resultPages.add(new ConfluencePageInfo(pageId, title, cleanedContent));
+                }
+            }
+            
+            return resultPages;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return List.of();
+        }
+    }
 }
