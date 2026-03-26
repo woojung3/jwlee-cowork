@@ -152,6 +152,7 @@ public class WeeklyReportAgent {
 }
 ```
 
+<not-recommended>
 ## 6. Fragments: Dynamic Sequencing (Request-Only)
 **STRATEGY:** Use fragments only when explicitly requested to reveal information incrementally.
 
@@ -166,6 +167,7 @@ public class WeeklyReportAgent {
 Use indices to trigger elements out of document order.
 - `Appears Last <!-- element class="fragment" data-fragment-index="4" -->`
 - `Appears First <!-- element class="fragment" data-fragment-index="1" -->`
+</not-recommended>
 
 ## 7. Icons: Font Awesome Integration
 **MANDATORY:** Use Icons to replace low-impact bullets. Support all four syntax types.
@@ -180,6 +182,7 @@ Use indices to trigger elements out of document order.
 - **Animating:** `fa-spin` (Rotation), `fa-pulse` (8-step pulse).
 - **Common Symbols:** `fa-spinner`, `fa-circle-notch`, `fa-sync`, `fa-cog`, `fa-stroopwafel`.
 
+<not-recommended>
 ## 8. Auto-Animate: Professional Transitions (Request-Only)
 **CORE RULE:** Use Auto-Animate only when explicitly requested to morph elements between slides. Use identical element structures to anchor the animation.
 
@@ -198,6 +201,7 @@ Use indices to trigger elements out of document order.
 ### Strategic Constraints
 - **Do NOT Overuse:** Limit to 1-2 transitions per chapter to avoid "visual noise."
 - **Anchor Elements:** Keep the "moving" elements' IDs or text identical for seamless interpolation.
+</not-recommended>
 
 ## ⚠️ CRITICAL AI INSTRUCTIONS
 1. **NO Auto-Fragments:** NEVER use `+` or `)` for list items. ALWAYS use `<!-- element class="fragment" -->` when fragments are requested.
