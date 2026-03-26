@@ -69,7 +69,7 @@ public class AgentGenerationPlanAgent {
         var searchOps = localRagTools.getOrOpenMemoryInstance(ragName);
         var rag = new JsonSafeToolishRag("embabel_knowledge", "Project patterns and framework guides", searchOps);
 
-        String researchFindings = ai.withLlm(LlmOptions.withLlmForRole("normal").withoutThinking())
+        String researchFindings = ai.withLlm(LlmOptions.withLlmForRole("simple").withoutThinking())
                 .withReference(rag)
                 .generateText(promptProvider.getPrompt("agents/planagent/research-patterns.jinja", Map.of(
                     "goal", req.goal(), "features", req.features()
