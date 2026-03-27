@@ -16,10 +16,10 @@ logging:
   file:
     name: .shell.log
   level:
-    root: INFO
-    org.springframework.shell: INFO
-    com.embabel: INFO
+    root: WARN
     org.apache.lucene: WARN
+      # org.springframework.shell: INFO
+      # com.embabel: INFO
 
 embabel:
   agent:
