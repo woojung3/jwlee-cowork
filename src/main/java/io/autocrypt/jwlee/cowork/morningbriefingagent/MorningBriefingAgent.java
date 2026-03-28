@@ -1,29 +1,34 @@
 package io.autocrypt.jwlee.cowork.morningbriefingagent;
 
-import com.embabel.agent.api.annotation.AchievesGoal;
-import com.embabel.agent.api.annotation.Action;
-import com.embabel.agent.api.annotation.Agent;
-import com.embabel.agent.api.annotation.State;
-import com.embabel.agent.api.common.Ai;
-import com.embabel.common.ai.model.LlmOptions;
-import io.autocrypt.jwlee.cowork.core.dto.JiraIssueInfo;
-import io.autocrypt.jwlee.cowork.core.dto.MeetingInfo;
-import io.autocrypt.jwlee.cowork.core.tools.ConfluenceService;
-import io.autocrypt.jwlee.cowork.core.tools.JiraService;
-import io.autocrypt.jwlee.cowork.core.hitl.ApplicationContextHolder;
-import io.autocrypt.jwlee.cowork.core.hitl.NotificationEvent;
-import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
-import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
-import io.autocrypt.jwlee.cowork.core.tools.CoreWorkspaceProvider;
-import io.autocrypt.jwlee.cowork.core.tools.CoworkLogger;
-import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import org.springframework.stereotype.Component;
+
+import com.embabel.agent.api.annotation.AchievesGoal;
+import com.embabel.agent.api.annotation.Action;
+import com.embabel.agent.api.annotation.Agent;
+import com.embabel.agent.api.annotation.State;
+import com.embabel.agent.api.common.Ai;
+import com.embabel.agent.api.common.OperationContext;
+import com.embabel.agent.core.AgentProcess;
+import com.embabel.common.ai.model.LlmOptions;
+
+import io.autocrypt.jwlee.cowork.core.dto.JiraIssueInfo;
+import io.autocrypt.jwlee.cowork.core.hitl.ApplicationContextHolder;
+import io.autocrypt.jwlee.cowork.core.hitl.NotificationEvent;
+import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
+import io.autocrypt.jwlee.cowork.core.tools.ConfluenceService;
+import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
+import io.autocrypt.jwlee.cowork.core.tools.CoreWorkspaceProvider;
+import io.autocrypt.jwlee.cowork.core.tools.CoworkLogger;
+import io.autocrypt.jwlee.cowork.core.tools.JiraService;
+import io.autocrypt.jwlee.cowork.morningbriefingagent.MorningBriefingAgent.JiraChange;
 
 @Agent(description = "Analyzes yesterday's Jira and Confluence updates to generate a morning briefing.")
 @Component
@@ -108,7 +113,7 @@ public class MorningBriefingAgent {
 
     @AchievesGoal(description = "Generate final morning briefing report")
     @Action
-    public MorningBriefingReport generateBriefingAndTasks(SynthesisState state, Ai ai) {
+    public MorningBriefingReport generateBriefingAndTasks(SynthesisState state, Ai ai, OperationContext ctx) {
         logger.info("MorningBriefing", "최종 마크다운 리포트 생성 중...");
         
         String prompt = promptProvider.getPrompt("agents/morningbriefing/generate_tasks.jinja", Map.of(
@@ -126,6 +131,22 @@ public class MorningBriefingAgent {
         );
         
         logger.info("MorningBriefing", "브리핑 생성 및 알림 완료");
+
+        AgentProcess process = ctx.getAgentProcess();
+        
+        logger.info("MorningBriefing", "[Process Cost]\n" + process.costInfoString(false));
+
+        var history = process.getHistory();
+        String historyLog = String.format("Action history (%d actions):\n%s",
+                history.size(),
+                IntStream.range(0, history.size())
+                        .mapToObj(i -> String.format("%d. %s (%.1fs)", 
+                                i + 1, 
+                                history.get(i).getActionName(), 
+                                history.get(i).getRunningTime().toMillis() / 1000.0))
+                        .collect(Collectors.joining("\n")));
+        logger.info("MorningBriefing", "[Process History]\n" + historyLog);
+
         return new MorningBriefingReport(markdown);
     }
 }

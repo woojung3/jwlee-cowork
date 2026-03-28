@@ -3,6 +3,7 @@ package io.autocrypt.jwlee.ragworkaround;
 import com.embabel.agent.api.reference.LlmReference;
 import com.embabel.agent.api.tool.Tool;
 import com.embabel.agent.rag.service.SearchOperations;
+import com.embabel.agent.rag.tools.ResultsListener;
 import com.embabel.agent.rag.tools.ToolishRag;
 
 import java.lang.reflect.InvocationHandler;
@@ -17,6 +18,14 @@ public class JsonSafeToolishRag implements LlmReference {
 
     public JsonSafeToolishRag(String name, String description, SearchOperations searchOperations) {
         this.delegate = new ToolishRag(name, description, searchOperations);
+    }
+
+    private JsonSafeToolishRag(ToolishRag delegate) {
+        this.delegate = delegate;
+    }
+
+    public JsonSafeToolishRag withListener(ResultsListener listener) {
+        return new JsonSafeToolishRag(this.delegate.withListener(listener));
     }
 
     @Override

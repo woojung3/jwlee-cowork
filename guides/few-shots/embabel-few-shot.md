@@ -1060,6 +1060,66 @@ public class PaymentService {
 ```
 **[LLM Instruction]** Use `@Tracked` for any business logic or external API calls inside an `@Action` method.
 
+### 5.1.2 Programmatic Introspection (AgentProcess API)
+While `AgentProcessTools` provides LLM-accessible tools for self-reflection, developers can deterministically access the same underlying data directly from the `AgentProcess` object. Obtain the process via `ctx.getAgentProcess()` or `AgentProcess.get()`.
+
+#### Cost & Usage (LlmInvocationHistory)
+`AgentProcess` implements `LlmInvocationHistory`, exposing detailed metrics about LLM consumption.
+- **`cost()`**: Returns `double`. Total accumulated cost in USD.
+- **`usage()`**: Returns a `Usage` object with `getPromptTokens()`, `getCompletionTokens()`, and `getTotalTokens()`.
+- **`getLlmInvocations()`**: Returns `List<LlmInvocation>`. Each invocation provides:
+    - `getLlmMetadata()`: Model name, version, and provider.
+    - `getUsage()`: Token count for this specific call.
+    - `cost()`: USD cost for this specific call.
+    - `getRunningTime()`: Latency (Duration) of the LLM response.
+    - `getTimestamp()`: Execution timestamp.
+- **`modelsUsed()`**: List of models invoked during the process.
+- **`costInfoString(boolean verbose)`**: Returns a pre-formatted, human-readable summary of cost and token usage.
+
+### 5.1.3 Observability: Capturing Tool & RAG Events
+While logs show tool activity, you can deterministically capture RAG queries and result counts by registering a `ResultsListener` on your `ToolishRag` instance.
+
+#### Built-in RAG Observation Pattern
+```java
+// 1. Register a listener to capture RAG events into the Blackboard
+var observableRag = toolishRag.withListener(event -> ctx.addObject(event));
+
+// 2. Execute RAG within an action
+ctx.ai().withReference(observableRag).generateText("...");
+
+// 3. Deterministically extract captured queries and result counts
+List<ResultsEvent> ragEvents = ctx.objectsOfType(ResultsEvent.class);
+for (ResultsEvent event : ragEvents) {
+    System.out.printf("Query: %s, Found: %d items\n", 
+        event.getQuery(), event.getResults().size());
+}
+```
+
+#### Execution History & Timing
+- **`getHistory()`**: Returns `List<ActionInvocation>`. Each record contains the `actionName`, `runningTime` (Duration), and `timestamp`.
+- **`getRunningTime()`**: Returns the total `Duration` the process has been active.
+
+#### Status & Results
+- **`getStatus()`**: Returns `AgentProcessStatusCode` (e.g., `RUNNING`, `COMPLETED`, `WAITING`, `FAILED`).
+- **`getGoal()`**: Returns the current `Goal` the agent is pursuing.
+- **`getFailureInfo()`**: Provides error details if the process failed.
+- **`resultOfType(Class<O> clazz)`**: Safely extracts the final result of a specific type from the blackboard upon completion.
+
+```java
+@Action
+public void logMetrics(OperationContext ctx) {
+    AgentProcess process = ctx.getAgentProcess();
+    
+    // Log pre-formatted cost info
+    System.out.println(process.costInfoString(false));
+    
+    // Inspect specific action timing
+    process.getHistory().forEach(action -> 
+        System.out.printf("Action %s took %ds\n", 
+            action.getActionName(), action.getRunningTime().toSeconds()));
+}
+```
+
 ## 5.2 Unit Testing: Predictable & Cost-Effective
 Test individual agent actions without real LLM calls using `FakeOperationContext` and `FakePromptRunner`.
 
