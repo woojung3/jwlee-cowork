@@ -36,7 +36,7 @@ public class TeamsApprovalListener {
         }
 
         if (webhookUrl == null || webhookUrl.isBlank()) {
-            log.debug("app.teams.webhookUrl is not set. Skipping Teams notification.");
+            log.warn("app.teams.webhookUrl is not set. Skipping Teams notification for process: {}", event.processId());
             return;
         }
 
@@ -71,11 +71,10 @@ public class TeamsApprovalListener {
         }
     }
 
-    @Async
     @EventListener
     public void onNotificationRequested(NotificationEvent event) {
         if (webhookUrl == null || webhookUrl.isBlank()) {
-            log.debug("app.teams.webhookUrl is not set. Skipping Teams notification.");
+            log.warn("app.teams.webhookUrl is not set. Skipping Teams notification: {}", event.title());
             return;
         }
 
@@ -110,18 +109,17 @@ public class TeamsApprovalListener {
                 .POST(HttpRequest.BodyPublishers.ofString(payload))
                 .build();
 
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenAccept(response -> {
-                    if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                        log.info("Successfully sent Teams notification for {}", contextInfo);
-                    } else {
-                        log.warn("Failed to send Teams notification. Status: {}, Body: {}", response.statusCode(), response.body());
-                    }
-                })
-                .exceptionally(ex -> {
-                    log.error("Error sending Teams notification", ex);
-                    return null;
-                });
+        try {
+            log.debug("Sending Teams message for: {}", contextInfo);
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                log.info("Successfully sent Teams notification for {}", contextInfo);
+            } else {
+                log.warn("Failed to send Teams notification. Status: {}, Body: {}", response.statusCode(), response.body());
+            }
+        } catch (Exception e) {
+            log.error("Error sending Teams notification for " + contextInfo, e);
+        }
     }
 
     private String escapeJson(String input) {
