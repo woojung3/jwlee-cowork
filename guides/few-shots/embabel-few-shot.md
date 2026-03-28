@@ -1076,22 +1076,52 @@ While `AgentProcessTools` provides LLM-accessible tools for self-reflection, dev
 - **`modelsUsed()`**: List of models invoked during the process.
 - **`costInfoString(boolean verbose)`**: Returns a pre-formatted, human-readable summary of cost and token usage.
 
-### 5.1.3 Observability: Capturing Tool & RAG Events
-While logs show tool activity, you can deterministically capture RAG queries and result counts by registering a `ResultsListener` on your `ToolishRag` instance.
+### 5.1.3 Advanced Observability: Integrated Metrics Pattern
+For production-grade agents, you often need to combine overall process stats, individual LLM invocation details, and RAG event data into a single report.
 
-#### Built-in RAG Observation Pattern
+#### 1. Capturing RAG Events (The Listener Pattern)
+By default, RAG queries are logged but not stored. Register a `ResultsListener` to capture them into the Blackboard as `ResultsEvent` objects.
+
 ```java
-// 1. Register a listener to capture RAG events into the Blackboard
+// Register listener during RAG tool initialization
 var observableRag = toolishRag.withListener(event -> ctx.addObject(event));
+```
 
-// 2. Execute RAG within an action
-ctx.ai().withReference(observableRag).generateText("...");
+#### 2. Comprehensive Metrics Implementation
+The following pattern (derived from `PresalesAgent`) demonstrates how to output a complete audit trail of the agent's reasoning and costs.
 
-// 3. Deterministically extract captured queries and result counts
-List<ResultsEvent> ragEvents = ctx.objectsOfType(ResultsEvent.class);
-for (ResultsEvent event : ragEvents) {
-    System.out.printf("Query: %s, Found: %d items\n", 
-        event.getQuery(), event.getResults().size());
+```java
+@Action
+public void executeAndLog(RequirementRequest req, ActionContext ctx) {
+    // ... AI operations using observableRag ...
+    
+    logIntegratedMetrics(ctx);
+}
+
+private void logIntegratedMetrics(OperationContext ctx) {
+    AgentProcess process = ctx.getAgentProcess();
+    
+    // A. Overall Process Metrics
+    System.out.println("[Process Info]\n" + process.costInfoString(true));
+    
+    // B. Action History (Sequence & Timing)
+    process.getHistory().forEach(h -> 
+        System.out.printf("- %s (%.1fs)\n", h.getActionName(), h.getRunningTime().toMillis()/1000.0));
+
+    // C. Individual LLM Invocation Detail (Metadata & Latency)
+    List<LlmInvocation> invocations = process.getLlmInvocations();
+    if (!invocations.isEmpty()) {
+        LlmInvocation last = invocations.getLast();
+        System.out.printf("[Last LLM] Model: %s, Latency: %.1fs, Cost: $%.6f\n",
+                last.getLlmMetadata().getName(), // Correct method is getName()
+                last.getRunningTime().toMillis()/1000.0,
+                last.cost());
+    }
+
+    // D. RAG Query Tracking
+    ctx.objectsOfType(ResultsEvent.class).forEach(e -> 
+        System.out.printf("[RAG] Query: %s -> Found %d items\n", 
+            e.getQuery(), e.getResults().size()));
 }
 ```
 

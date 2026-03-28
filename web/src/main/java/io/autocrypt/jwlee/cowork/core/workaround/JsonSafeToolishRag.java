@@ -3,6 +3,7 @@ package io.autocrypt.jwlee.cowork.core.workaround;
 import com.embabel.agent.api.reference.LlmReference;
 import com.embabel.agent.api.tool.Tool;
 import com.embabel.agent.rag.service.SearchOperations;
+import com.embabel.agent.rag.tools.ResultsListener;
 import com.embabel.agent.rag.tools.ToolishRag;
 import com.embabel.common.ai.prompt.PromptContributor;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +31,10 @@ public class JsonSafeToolishRag implements LlmReference {
 
     public JsonSafeToolishRag withHint(PromptContributor hint) {
         return new JsonSafeToolishRag(this.delegate.withHint(hint));
+    }
+
+    public JsonSafeToolishRag withListener(ResultsListener listener) {
+        return new JsonSafeToolishRag(this.delegate.withListener(listener));
     }
 
     @Override
