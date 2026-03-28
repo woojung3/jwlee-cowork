@@ -99,7 +99,7 @@ public class PresalesAgent {
         var productRag = new JsonSafeToolishRag("product_knowledge", "Internal product features, roadmap, and technical specifications", productSearch);
 
         var simpleAi = ctx.ai().withLlmByRole("simple").withReference(productRag);
-        var normalAi = ctx.ai().withLlmByRole("normal");
+        var normalAi = ctx.ai().withLlm(LlmOptions.withLlmForRole("normal").withMaxTokens(65536));
 
         // 1. Gatherer-Critic Loop to collect product capability information
         String productContext = RepeatUntilAcceptableBuilder
@@ -149,4 +149,6 @@ public class PresalesAgent {
 
         return new AnalysisResult(rawAnalysis, questions, finalReport);
     }
+}
+ }
 }

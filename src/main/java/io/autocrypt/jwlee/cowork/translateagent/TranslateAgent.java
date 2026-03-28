@@ -226,7 +226,7 @@ public class TranslateAgent {
                     "sourceChunk", sourceChunk
                 ));
 
-                String translated = ai.withLlm(LlmOptions.withLlmForRole("normal").withoutThinking())
+                String translated = ai.withLlm(LlmOptions.withLlmForRole("normal").withoutThinking().withMaxTokens(65536))
                     .withPromptContributor(translatorPersona)
                     .generateText(prompt);
 

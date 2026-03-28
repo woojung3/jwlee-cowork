@@ -99,7 +99,7 @@ public class ObsidianAgent {
             "tasksToInclude", String.join("\n", unfinishedTasks)
         ));
 
-        String content = ai.withDefaultLlm().generateText(prompt);
+        String content = ai.withLlm(LlmOptions.withLlmForRole("normal").withMaxTokens(65536)).generateText(prompt);
 
         obsidianTools.writeVaultNote(relativePath, content);
         log("Daily note written to vault.");
@@ -161,7 +161,7 @@ public class ObsidianAgent {
             "previousWeek", previousWeek
         ));
 
-        String content = ai.withDefaultLlm().generateText(prompt);
+        String content = ai.withLlm(LlmOptions.withLlmForRole("normal").withMaxTokens(65536)).generateText(prompt);
 
         obsidianTools.writeVaultNote(relativePath, content);
         log("Weekly note written to vault.");

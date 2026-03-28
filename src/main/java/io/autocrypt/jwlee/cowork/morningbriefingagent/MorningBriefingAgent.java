@@ -117,7 +117,7 @@ public class MorningBriefingAgent {
             "meetingSummaries", state.meetingSummaries()
         ));
 
-        String markdown = ai.withLlm(LlmOptions.withLlmForRole("performant").withoutThinking())
+        String markdown = ai.withLlm(LlmOptions.withLlmForRole("performant").withoutThinking().withMaxTokens(65536))
                 .generateText(prompt);
 
         // 알림으로 리포트 전문 전송

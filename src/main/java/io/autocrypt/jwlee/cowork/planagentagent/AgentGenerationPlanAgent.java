@@ -76,7 +76,7 @@ public class AgentGenerationPlanAgent {
                 )));
 
         // 2단계: Pro 모델로 DSL 텍스트 생성
-        String dslContent = ai.withLlm(LlmOptions.withLlmForRole("performant").withoutThinking())
+        String dslContent = ai.withLlm(LlmOptions.withLlmForRole("performant").withoutThinking().withMaxTokens(65536))
                 .generateText(promptProvider.getPrompt("agents/planagent/generate-dsl.jinja", Map.of(
                     "dsl_guide", fileTools.readFile("guides/DSL_GUIDE.md").content(),
                     "goal", req.goal(), "features", req.features(),
