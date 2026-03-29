@@ -95,7 +95,6 @@ public class MorningBriefingAgent {
             if (reportInfo.title().contains("주간 팀장회의록")) {
                 logger.info("MorningBriefing", "주간 팀장회의록 감지. '팀별 주간보고' 섹션 추출 중...");
                 processedContent = extractWeeklyReports(reportInfo.content());
-                logger.info("MorningBriefing", "[EXTRACTED SECTION]\n" + (processedContent.length() > 300 ? processedContent.substring(0, 300) + "..." : processedContent));
             }
             rawNotes.add(new MeetingNote(reportInfo.title(), processedContent, "System"));
         }
@@ -113,11 +112,14 @@ public class MorningBriefingAgent {
 
     private String extractWeeklyReports(String html) {
         Document doc = Jsoup.parseBodyFragment(html);
-        Elements allElements = doc.body().children();
+        
+        // 문서 전체에서 h1~h6 태그를 검색
+        Elements headers = doc.select("h1, h2, h3, h4, h5, h6");
         
         Element targetHeader = null;
-        for (Element el : allElements) {
-            if (el.tagName().matches("h[1-6]") && el.text().contains("팀별 주간보고")) {
+        for (Element el : headers) {
+            String text = el.text().replaceAll("\\s+", ""); // 공백 제거 후 비교
+            if (text.contains("팀별주간보고") || text.contains("팀별현황") || text.contains("주간보고")) {
                 targetHeader = el;
                 break;
             }
@@ -132,9 +134,9 @@ public class MorningBriefingAgent {
         
         int targetLevel = Integer.parseInt(targetHeader.tagName().substring(1));
         
+        // 형제 요소들을 순회하며 섹션 추출
         Element next = targetHeader.nextElementSibling();
         while (next != null) {
-            // 1. 같은 레벨 이상의 헤더를 만나면 종료 (예: 다른 h2)
             if (next.tagName().matches("h[1-6]")) {
                 int nextLevel = Integer.parseInt(next.tagName().substring(1));
                 if (nextLevel <= targetLevel) {
@@ -142,7 +144,6 @@ public class MorningBriefingAgent {
                 }
             }
             
-            // 2. 수평선(<hr>)을 만나면 섹션이 끝난 것으로 간주하고 종료
             if (next.tagName().equalsIgnoreCase("hr")) {
                 break;
             }
