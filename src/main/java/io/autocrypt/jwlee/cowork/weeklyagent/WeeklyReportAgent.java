@@ -10,7 +10,7 @@ import io.autocrypt.jwlee.cowork.core.hitl.ApprovalDecision;
 import io.autocrypt.jwlee.cowork.core.hitl.ApprovalRequestedEvent;
 import io.autocrypt.jwlee.cowork.core.hitl.ApplicationContextHolder;
 import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
-import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
+import io.autocrypt.jwlee.cowork.core.tools.FileWriteTool;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -26,10 +26,10 @@ public class WeeklyReportAgent {
 
     private final RoleGoalBackstory analystPersona;
     private final RoleGoalBackstory collectorPersona;
-    private final CoreFileTools fileTools;
+    private final FileWriteTool fileTools;
     private final PromptProvider promptProvider;
 
-    public WeeklyReportAgent(CoreFileTools fileTools, PromptProvider promptProvider) {
+    public WeeklyReportAgent(FileWriteTool fileTools, PromptProvider promptProvider) {
         this.fileTools = fileTools;
         this.promptProvider = promptProvider;
         this.analystPersona = promptProvider.getPersona("agents/weekly/persona-analyst.md");
@@ -133,7 +133,7 @@ public class WeeklyReportAgent {
     }
 
     @State
-    public static record AnalyzeTeamsState(RawWeeklyData rawData, JiraIssueList jiraIssues, List<TeamAnalysis> analyses, RoleGoalBackstory analystPersona, CoreFileTools fileTools, PromptProvider promptProvider) implements Stage {
+    public static record AnalyzeTeamsState(RawWeeklyData rawData, JiraIssueList jiraIssues, List<TeamAnalysis> analyses, RoleGoalBackstory analystPersona, FileWriteTool fileTools, PromptProvider promptProvider) implements Stage {
         @Action
         public ApprovalDecision waitForApproval(ActionContext ctx) {
             String processId = ctx.getProcessContext().getAgentProcess().getId();
@@ -165,7 +165,7 @@ public class WeeklyReportAgent {
     }
 
     @State
-    public static record FinalizeReportState(FinalWeeklyReport report, List<TeamAnalysis> analyses, RoleGoalBackstory analystPersona, CoreFileTools fileTools, PromptProvider promptProvider) implements Stage {
+    public static record FinalizeReportState(FinalWeeklyReport report, List<TeamAnalysis> analyses, RoleGoalBackstory analystPersona, FileWriteTool fileTools, PromptProvider promptProvider) implements Stage {
         @Action
         public ApprovalDecision waitForFinalApproval(ActionContext ctx) {
             String processId = ctx.getProcessContext().getAgentProcess().getId();
@@ -193,7 +193,7 @@ public class WeeklyReportAgent {
     }
 
     @State
-    public static record FinishedState(FinalWeeklyReport finalReport, List<TeamAnalysis> analyses, CoreFileTools fileTools) implements Stage {
+    public static record FinishedState(FinalWeeklyReport finalReport, List<TeamAnalysis> analyses, FileWriteTool fileTools) implements Stage {
         @Action
         @AchievesGoal(description = "주간보고서가 최종 승인됨")
         public FinalWeeklyReport done() {
@@ -217,7 +217,7 @@ public class WeeklyReportAgent {
             }
             
             try {
-                fileTools.saveGeneratedContent(filename, sb.toString());
+                fileTools.writeFile("output/" + filename, sb.toString());
             } catch (Exception e) {
                 System.err.println("보고서 저장 실패: " + e.getMessage());
             }

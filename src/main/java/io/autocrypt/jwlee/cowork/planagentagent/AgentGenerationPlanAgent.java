@@ -20,7 +20,8 @@ import com.embabel.agent.api.common.Ai;
 import com.embabel.common.ai.model.LlmOptions;
 
 import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
-import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
+import io.autocrypt.jwlee.cowork.core.tools.FileReadTool;
+import io.autocrypt.jwlee.cowork.core.tools.FileWriteTool;
 import io.autocrypt.jwlee.cowork.core.tools.CoworkLogger;
 import io.autocrypt.jwlee.cowork.core.tools.LocalRagTools;
 import io.autocrypt.jwlee.cowork.core.workaround.JsonSafeToolishRag;
@@ -34,14 +35,16 @@ public class AgentGenerationPlanAgent {
     // 플래닝을 위한 유니크한 결과 타입
     public record DslResult(String dslContent) {}
 
-    private final CoreFileTools fileTools;
+    private final FileReadTool readTool;
+    private final FileWriteTool writeTool;
     private final PromptProvider promptProvider;
     private final CoworkLogger logger;
     private final LocalRagTools localRagTools;
 
-    public AgentGenerationPlanAgent(CoreFileTools fileTools, PromptProvider promptProvider, 
+    public AgentGenerationPlanAgent(FileReadTool readTool, FileWriteTool writeTool, PromptProvider promptProvider, 
                                    CoworkLogger logger, LocalRagTools localRagTools) {
-        this.fileTools = fileTools;
+        this.readTool = readTool;
+        this.writeTool = writeTool;
         this.promptProvider = promptProvider;
         this.logger = logger;
         this.localRagTools = localRagTools;
@@ -78,7 +81,7 @@ public class AgentGenerationPlanAgent {
         // 2단계: Pro 모델로 DSL 텍스트 생성
         String dslContent = ai.withLlm(LlmOptions.withLlmForRole("performant").withoutThinking().withMaxTokens(65536))
                 .generateText(promptProvider.getPrompt("agents/planagent/generate-dsl.jinja", Map.of(
-                    "dsl_guide", fileTools.readFile("guides/DSL_GUIDE.md").content(),
+                    "dsl_guide", readTool.readFile("guides/DSL_GUIDE.md").content(),
                     "goal", req.goal(), "features", req.features(),
                     "constraints", req.constraints(), "research_findings", researchFindings
                 )));
@@ -87,7 +90,7 @@ public class AgentGenerationPlanAgent {
         String agentName = extractAgentName(dslContent);
         Path dslDir = Paths.get("guides/DSLs");
         if (!Files.exists(dslDir)) Files.createDirectories(dslDir);
-        fileTools.writeFile(dslDir.resolve("DSL-" + agentName + ".md").toString(), dslContent);
+        writeTool.writeFile(dslDir.resolve("DSL-" + agentName + ".md").toString(), dslContent);
         
         return new DslResult(dslContent);
     }

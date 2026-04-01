@@ -22,7 +22,7 @@ import com.embabel.common.ai.model.LlmOptions;
 import io.autocrypt.jwlee.cowork.core.hitl.ApplicationContextHolder;
 import io.autocrypt.jwlee.cowork.core.hitl.NotificationEvent;
 import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
-import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
+import io.autocrypt.jwlee.cowork.core.tools.FileReadTool;
 import io.autocrypt.jwlee.cowork.core.tools.CoworkLogger;
 import io.autocrypt.jwlee.cowork.core.tools.GitTools;
 import io.autocrypt.jwlee.cowork.core.tools.GoogleServiceTools;
@@ -39,7 +39,7 @@ public class ObsidianAgent {
     private final GitTools gitTools;
     private final ObsidianTools obsidianTools;
     private final GoogleServiceTools googleServiceTools;
-    private final CoreFileTools fileTools;
+    private final FileReadTool fileTools;
     private final CoworkLogger logger;
     private final PromptProvider promptProvider;
 
@@ -47,7 +47,7 @@ public class ObsidianAgent {
     private static final DateTimeFormatter WEEKLY_FORMAT = DateTimeFormatter.ofPattern("'🗓'yyyy-'W'ww");
 
     public ObsidianAgent(GitTools gitTools, ObsidianTools obsidianTools, GoogleServiceTools googleServiceTools, 
-                        CoreFileTools fileTools, CoworkLogger logger, PromptProvider promptProvider) {
+                        FileReadTool fileTools, CoworkLogger logger, PromptProvider promptProvider) {
         this.gitTools = gitTools;
         this.obsidianTools = obsidianTools;
         this.googleServiceTools = googleServiceTools;

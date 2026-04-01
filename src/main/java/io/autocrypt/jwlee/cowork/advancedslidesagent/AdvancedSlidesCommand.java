@@ -4,7 +4,7 @@ import com.embabel.agent.core.AgentPlatform;
 import io.autocrypt.jwlee.cowork.advancedslidesagent.dto.SlideGenerationRequest;
 import io.autocrypt.jwlee.cowork.advancedslidesagent.dto.SlideMarkdownOutput;
 import io.autocrypt.jwlee.cowork.core.commands.BaseAgentCommand;
-import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
+import io.autocrypt.jwlee.cowork.core.tools.FileReadTool;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
@@ -18,9 +18,9 @@ import java.util.concurrent.ExecutionException;
 @ShellComponent
 public class AdvancedSlidesCommand extends BaseAgentCommand {
 
-    private final CoreFileTools fileTools;
+    private final FileReadTool fileTools;
 
-    public AdvancedSlidesCommand(AgentPlatform agentPlatform, CoreFileTools fileTools) {
+    public AdvancedSlidesCommand(AgentPlatform agentPlatform, FileReadTool fileTools) {
         super(agentPlatform);
         this.fileTools = fileTools;
     }

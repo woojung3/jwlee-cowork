@@ -11,8 +11,7 @@ import io.autocrypt.jwlee.cowork.core.workaround.JsonSafeToolishRag;
 import com.embabel.chat.Conversation;
 import com.embabel.chat.Message;
 import com.embabel.chat.UserMessage;
-import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
-import io.autocrypt.jwlee.cowork.core.tools.LocalRagTools;
+import io.autocrypt.jwlee.cowork.core.tools.*;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -23,14 +22,26 @@ import java.util.List;
 public class ChatbotAgent {
 
     private final RoleGoalBackstory mainOrchestratorPersona;
-    private final CoreFileTools coreFileTools;
+    private final FileReadTool readTool;
+    private final FileWriteTool writeTool;
+    private final FileEditTool editTool;
+    private final GlobTool globTool;
+    private final GrepTool grepTool;
     private final LocalRagTools localRagTools;
 
     public ChatbotAgent(RoleGoalBackstory mainOrchestratorPersona, 
-                        CoreFileTools coreFileTools,
+                        FileReadTool readTool,
+                        FileWriteTool writeTool,
+                        FileEditTool editTool,
+                        GlobTool globTool,
+                        GrepTool grepTool,
                         LocalRagTools localRagTools) {
         this.mainOrchestratorPersona = mainOrchestratorPersona;
-        this.coreFileTools = coreFileTools;
+        this.readTool = readTool;
+        this.writeTool = writeTool;
+        this.editTool = editTool;
+        this.globTool = globTool;
+        this.grepTool = grepTool;
         this.localRagTools = localRagTools;
     }
 
@@ -67,7 +78,11 @@ public class ChatbotAgent {
         
         var response = ai.withLlmByRole("simple")
                 .withPromptContributor(mainOrchestratorPersona)
-                .withToolObject(coreFileTools)
+                .withToolObject(readTool)
+                .withToolObject(writeTool)
+                .withToolObject(editTool)
+                .withToolObject(globTool)
+                .withToolObject(grepTool)
                 .withToolObject(new ChatbotRagWrapper())
                 .withReference(toolishRag)
                 .respond(contextMessages);

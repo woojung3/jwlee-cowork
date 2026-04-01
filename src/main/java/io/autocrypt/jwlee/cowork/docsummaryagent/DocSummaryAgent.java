@@ -19,7 +19,7 @@ import com.embabel.common.ai.model.LlmOptions;
 
 import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
 import io.autocrypt.jwlee.cowork.core.tools.CoworkLogger;
-import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
+import io.autocrypt.jwlee.cowork.core.tools.FileReadTool;
 import io.autocrypt.jwlee.cowork.core.tools.CoreWorkspaceProvider;
 import io.autocrypt.jwlee.cowork.core.tools.LocalRagTools;
 import io.autocrypt.jwlee.cowork.core.tools.PdfParser;
@@ -30,13 +30,13 @@ import io.autocrypt.jwlee.cowork.core.workaround.JsonSafeToolishRag;
 public class DocSummaryAgent {
 
     private final PdfParser pdfParser;
-    private final CoreFileTools fileTools;
+    private final FileReadTool fileTools;
     private final LocalRagTools localRagTools;
     private final DocSummaryWorkspace workspace;
     private final CoworkLogger logger;
     private final PromptProvider promptProvider;
 
-    public DocSummaryAgent(PdfParser pdfParser, CoreFileTools fileTools, LocalRagTools localRagTools, 
+    public DocSummaryAgent(PdfParser pdfParser, FileReadTool fileTools, LocalRagTools localRagTools, 
                      DocSummaryWorkspace workspace, CoworkLogger logger, PromptProvider promptProvider) {
         this.pdfParser = pdfParser;
         this.fileTools = fileTools;

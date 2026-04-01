@@ -29,7 +29,7 @@ import io.autocrypt.jwlee.cowork.core.hitl.ApplicationContextHolder;
 import io.autocrypt.jwlee.cowork.core.hitl.NotificationEvent;
 import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
 import io.autocrypt.jwlee.cowork.core.tools.ConfluenceService;
-import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
+import io.autocrypt.jwlee.cowork.core.tools.FileReadTool;
 import io.autocrypt.jwlee.cowork.core.tools.CoreWorkspaceProvider;
 import io.autocrypt.jwlee.cowork.core.tools.CoworkLogger;
 import io.autocrypt.jwlee.cowork.core.tools.JiraService;
@@ -60,12 +60,12 @@ public class MorningBriefingAgent {
     private final ConfluenceService confluenceService;
     private final PromptProvider promptProvider;
     private final CoreWorkspaceProvider workspaceProvider;
-    private final CoreFileTools fileTools;
+    private final FileReadTool fileTools;
     private final CoworkLogger logger;
 
     public MorningBriefingAgent(JiraService jiraService, ConfluenceService confluenceService, 
                                PromptProvider promptProvider, CoreWorkspaceProvider workspaceProvider, 
-                               CoreFileTools fileTools, CoworkLogger logger) {
+                               FileReadTool fileTools, CoworkLogger logger) {
         this.jiraService = jiraService;
         this.confluenceService = confluenceService;
         this.promptProvider = promptProvider;

@@ -7,7 +7,7 @@ import com.embabel.agent.api.common.ActionContext;
 import com.embabel.agent.api.common.Ai;
 import com.embabel.common.ai.model.LlmOptions;
 import io.autocrypt.jwlee.cowork.advancedslidesagent.dto.*;
-import io.autocrypt.jwlee.cowork.core.tools.CoreFileTools;
+import io.autocrypt.jwlee.cowork.core.tools.FileReadTool;
 import io.autocrypt.jwlee.cowork.core.tools.CoreWorkspaceProvider;
 import io.autocrypt.jwlee.cowork.core.tools.CoreWorkspaceProvider.SubCategory;
 import io.autocrypt.jwlee.cowork.core.tools.CoworkLogger;
@@ -29,13 +29,13 @@ import java.util.Map;
 public class AdvancedSlidesAgent {
 
     private final CoreWorkspaceProvider workspaceProvider;
-    private final CoreFileTools fileTools;
+    private final FileReadTool fileTools;
     private final CoworkLogger logger;
 
     public interface Stage {}
 
     public AdvancedSlidesAgent(CoreWorkspaceProvider workspaceProvider,
-                                CoreFileTools fileTools,
+                                FileReadTool fileTools,
                                 CoworkLogger logger) {
         this.workspaceProvider = workspaceProvider;
         this.fileTools = fileTools;
@@ -56,7 +56,7 @@ public class AdvancedSlidesAgent {
             sourceBuilder.append(request.sourceString()).append("\n\n");
         }
         if (request.sourceFile() != null && !request.sourceFile().isBlank()) {
-            CoreFileTools.FileResult fileResult = fileTools.readFile(request.sourceFile());
+            FileReadTool.ReadResult fileResult = fileTools.readFile(request.sourceFile());
             if ("SUCCESS".equals(fileResult.status())) {
                 sourceBuilder.append(fileResult.content());
             } else {
@@ -91,7 +91,7 @@ public class AdvancedSlidesAgent {
         logger.info("AdvancedSlides", "Generating markdown for slides in workspace: " + state.request().workspaceId());
 
         // 1. Read few-shot guidelines
-        CoreFileTools.FileResult guidelinesResult = fileTools.readFile("guides/few-shots/adv-slides-few-shot.md");
+        FileReadTool.ReadResult guidelinesResult = fileTools.readFile("guides/few-shots/adv-slides-few-shot.md");
         String slideGuidelines = guidelinesResult.status().equals("SUCCESS") ? guidelinesResult.content() : "";
 
         // 2. Call LLM to generate markdown

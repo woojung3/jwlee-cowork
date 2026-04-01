@@ -13,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
@@ -33,25 +34,22 @@ public class ConfluenceServiceImpl implements ConfluenceService {
                                  @Value("${app.confluence.apiToken:}") String apiToken,
                                  @Value("${app.confluence.space-key:camlab}") String spaceKey) {
         this.restTemplate = restTemplate;
-        this.baseUrl = baseUrl;
-        this.email = email;
-        this.apiToken = apiToken;
-        this.spaceKey = spaceKey;
+        this.baseUrl = baseUrl != null ? baseUrl.trim() : "";
+        this.email = email != null ? email.trim() : "";
+        this.apiToken = apiToken != null ? apiToken.trim() : "";
+        this.spaceKey = spaceKey != null ? spaceKey.trim() : "";
     }
 
     private HttpHeaders createAuthHeaders() {
         String auth = email + ":" + apiToken;
-        byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes());
-        String authHeader = "Basic " + new String(encodedAuth);
+        byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8));
+        String authHeader = "Basic " + new String(encodedAuth, StandardCharsets.UTF_8);
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", authHeader);
         return headers;
     }
 
-    /**
-     * RAG 성능 향상 및 토큰 절약을 위해 Confluence Storage XML을 경량화된 HTML로 정제합니다.
-     */
     private String cleanHtmlForLlm(String storageHtml) {
         if (storageHtml == null || storageHtml.isBlank()) {
             return "";
@@ -72,10 +70,13 @@ public class ConfluenceServiceImpl implements ConfluenceService {
 
     @SuppressWarnings("unchecked")
     private List<ConfluencePageInfo> searchPages(String cql, int limit) {
-        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl + "/rest/api/content/search")
+        String searchPath = baseUrl.endsWith("/") ? "rest/api/content/search" : "/rest/api/content/search";
+        
+        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl + searchPath)
                 .queryParam("cql", cql)
                 .queryParam("limit", limit)
                 .build()
+                .encode(StandardCharsets.UTF_8)
                 .toUri();
 
         HttpEntity<String> entity = new HttpEntity<>(createAuthHeaders());
@@ -99,7 +100,7 @@ public class ConfluenceServiceImpl implements ConfluenceService {
             }
             return resultPages;
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("[Error] Confluence search failed for CQL: " + cql);
             return List.of();
         }
     }
@@ -111,8 +112,9 @@ public class ConfluenceServiceImpl implements ConfluenceService {
         int month = today.getMonthValue();
         int quarter = (month - 1) / 3 + 1;
         
-        String targetQuarterStr = String.format("[%d-%dQ]", year, quarter);
-        String cql = "title ~ \"\\\"" + targetQuarterStr + "\\\"\" AND title ~ \"OKR\" AND title !~ \"회고\" AND type = page AND space = \"" + spaceKey + "\"";
+        String targetQuarterStr = String.format("%d-%dQ", year, quarter);
+        String cql = String.format("title ~ \"%s\" AND title ~ \"OKR\" AND title !~ \"회고\" AND type = page AND space = \"%s\"", 
+                                   targetQuarterStr, spaceKey);
         
         List<ConfluencePageInfo> results = searchPages(cql, 1);
         return results.isEmpty() ? new ConfluencePageInfo("", "", "") : results.get(0);
@@ -120,7 +122,7 @@ public class ConfluenceServiceImpl implements ConfluenceService {
 
     @Override
     public ConfluencePageInfo getCurrentWeeklyReport() {
-        String cql = "title ~ \"\\\"주간 팀장회의록\\\"\" AND type = page AND space = \"" + spaceKey + "\" order by created desc";
+        String cql = String.format("title ~ \"주간 팀장회의록\" AND type = page AND space = \"%s\" order by created desc", spaceKey);
         List<ConfluencePageInfo> results = searchPages(cql, 1);
         return results.isEmpty() ? new ConfluencePageInfo("", "", "") : results.get(0);
     }
@@ -130,7 +132,8 @@ public class ConfluenceServiceImpl implements ConfluenceService {
     public String getPageStorage(String pageId) {
         if (pageId == null || pageId.isBlank()) return "";
         
-        String url = baseUrl + "/api/v2/pages/" + pageId + "?body-format=storage";
+        String separator = baseUrl.endsWith("/") ? "" : "/";
+        String url = baseUrl + separator + "api/v2/pages/" + pageId + "?body-format=storage";
         HttpEntity<String> entity = new HttpEntity<>(createAuthHeaders());
 
         try {
@@ -163,10 +166,10 @@ public class ConfluenceServiceImpl implements ConfluenceService {
             cqlBuilder.append(" AND ancestor = ").append(request.ancestorId());
         }
 
-        cqlBuilder.append(" AND text ~ \"\\\"").append(request.keyword()).append("\\\"\"");
+        cqlBuilder.append(" AND title ~ \"").append(request.keyword()).append("\"");
 
         if (request.excludeKeyword() != null && !request.excludeKeyword().isBlank()) {
-            cqlBuilder.append(" AND text !~ \"\\\"").append(request.excludeKeyword()).append("\\\"\"");
+            cqlBuilder.append(" AND title !~ \"").append(request.excludeKeyword()).append("\"");
         }
 
         if (request.fromDate() != null && !request.fromDate().isBlank()) {
