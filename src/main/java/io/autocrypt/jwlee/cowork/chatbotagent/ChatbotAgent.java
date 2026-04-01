@@ -27,6 +27,7 @@ public class ChatbotAgent {
     private final FileEditTool editTool;
     private final GlobTool globTool;
     private final GrepTool grepTool;
+    private final BashTool bashTool;
     private final LocalRagTools localRagTools;
 
     public ChatbotAgent(RoleGoalBackstory mainOrchestratorPersona, 
@@ -35,6 +36,7 @@ public class ChatbotAgent {
                         FileEditTool editTool,
                         GlobTool globTool,
                         GrepTool grepTool,
+                        BashTool bashTool,
                         LocalRagTools localRagTools) {
         this.mainOrchestratorPersona = mainOrchestratorPersona;
         this.readTool = readTool;
@@ -42,6 +44,7 @@ public class ChatbotAgent {
         this.editTool = editTool;
         this.globTool = globTool;
         this.grepTool = grepTool;
+        this.bashTool = bashTool;
         this.localRagTools = localRagTools;
     }
 
@@ -83,6 +86,7 @@ public class ChatbotAgent {
                 .withToolObject(editTool)
                 .withToolObject(globTool)
                 .withToolObject(grepTool)
+                .withToolObject(bashTool)
                 .withToolObject(new ChatbotRagWrapper())
                 .withReference(toolishRag)
                 .respond(contextMessages);
