@@ -16,7 +16,7 @@ logging:
   file:
     name: .shell.log
   level:
-    root: WARN
+    root: INFO
     com.embabel.agent.spi.support.ObservabilityTool: ERROR
       # org.apache.lucene: WARN
       # org.springframework.shell: INFO

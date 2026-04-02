@@ -66,16 +66,19 @@ public class ArchitectureAgent {
     public InitialBlueprint mapProjectStructure(ArchitectureRequest request, Ai ai) {
         String prompt = """
                 STAGE 1: PROJECT MAPPING
-                Path: %s
+                TARGET PATH: %s
                 Context: %s
                 
-                Your only job right now is to understand the macro-structure of the project.
-                1. Use 'glob' to find all files and map the directory tree.
-                2. Use 'readFile' on top-level configuration files (like pom.xml, build.gradle, README.md).
-                3. Identify the main technology stack and what appear to be the primary logical modules/packages.
+                Your absolute priority is to analyze ONLY the directory specified in "TARGET PATH".
                 
-                DO NOT try to guess module internals yet. Just map the surface.
-                """.formatted(request.path(), request.context());
+                # CRITICAL RULES:
+                1. **Glob Restricted**: You MUST call `glob` with `includePath` set to "%s". DO NOT call it with empty includePath or ".".
+                2. **Grep Restricted**: If you use `grep`, you MUST set `includePath` to "%s".
+                3. **Path Scoping**: Map the directory tree and identify modules ONLY within the target path.
+                4. **External Config**: You may ONLY read configuration files outside the target path (like the root pom.xml) if the target path itself lacks configuration, and even then, ONLY as a last resort. Do NOT list or explore unrelated modules like "./web/".
+                
+                Identify the main technology stack and logical modules/packages within this specific path.
+                """.formatted(request.path(), request.context(), request.path(), request.path());
 
         return ai.withLlm(LlmOptions.withLlmForRole("normal").withMaxTokens(65536))
                 .withPromptContributor(persona)

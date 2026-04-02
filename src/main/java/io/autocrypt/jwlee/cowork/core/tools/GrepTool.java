@@ -24,10 +24,11 @@ public class GrepTool {
     }
 
     @LlmTool(description = "Searches for a regex pattern in the codebase. " +
-            "Returns matching lines with file paths.")
+            "Returns matching lines with file paths. " +
+            "ALWAYS provide an includePath to restrict the search range.")
     public List<String> grep(
             @LlmTool.Param(description = "The regex pattern to search for.") String pattern,
-            @Nullable @LlmTool.Param(description = "The directory or file to search in. Defaults to '.' (current directory) if not provided.") String includePath
+            @org.springframework.lang.Nullable @LlmTool.Param(description = "The directory or file to search in. STRONGLY RECOMMENDED to provide this. Defaults to '.' (current directory) if not provided.") String includePath
     ) {
         // Handle cases where includePath might be null or missing due to reflection mapping issues
         String searchDir = (includePath == null || includePath.trim().isEmpty()) ? "." : includePath;
@@ -37,10 +38,12 @@ public class GrepTool {
         
         logger.info("GrepTool", "Searching for pattern: " + sanitizedPattern + " in " + searchDir);
         
-        // Try ripgrep first, then grep
+        // Try ripgrep first (respects .gitignore and is faster), then grep
+        // Add explicit exclusions for common noise to prevent leaking out of requested path if possible
+        String commonExcludes = " --exclude-dir={.git,target,build,node_modules}";
         List<String> results = runCommand("rg -n --no-heading --fixed-strings \"" + sanitizedPattern + "\" " + searchDir);
         if (results == null || results.isEmpty()) {
-            results = runCommand("grep -rnE \"" + sanitizedPattern + "\" " + searchDir);
+            results = runCommand("grep -rnE \"" + sanitizedPattern + "\" " + searchDir + commonExcludes);
         }
         
         return results != null ? results : new ArrayList<>();

@@ -90,7 +90,8 @@ public class OpsAgent {
         // 1. Glob for common infrastructure files
         List<String> infraFiles = new ArrayList<>();
         try {
-            infraFiles.addAll(globTool.glob("**/{Dockerfile,docker-compose.yml,*.tf,Jenkinsfile,*.yaml,*.yml,*.sh,pom.xml,package.json}"));
+            String pattern = "**/{Dockerfile,docker-compose.yml,*.tf,Jenkinsfile,*.yaml,*.yml,*.sh,pom.xml,package.json}";
+            infraFiles.addAll(globTool.glob(pattern, path));
         } catch (Exception e) {
             logger.info("OpsAgent", "Glob failed: " + e.getMessage());
         }
