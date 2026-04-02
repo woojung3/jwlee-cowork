@@ -53,65 +53,68 @@ public class ApiAgent {
     // --- States ---
 
     @State
+    public record ContextPrimingState(ApiRequest request, String techStack, String domainContext) {}
+
+    @State
     public record ApiDiscoveryState(ApiRequest request, List<String> controllerFiles, String techStack) {}
 
     @State
     public record ApiExtractionState(ApiRequest request, List<ExtractedApiBatch> batches) {}
 
+    // --- Actions ---
+
     @Action(description = "Stage 0: Context Priming via ArchitectureAgent.")
-    public ApiDiscoveryState prepareContext(ApiRequest request, Ai ai) {
-        String finalContext = request.context();
+    public ContextPrimingState prepareContext(ApiRequest request) {
+        logger.info("ApiAgent", "Stage 0: Priming context via ArchitectureAgent...");
+        String techStack = "Unknown";
+        StringBuilder primedContext = new StringBuilder();
         
-        if (finalContext == null || finalContext.trim().length() < 10) {
-            logger.info("ApiAgent", "Stage 0: Context is empty or too short. Invoking ArchitectureAgent for structural priming...");
-            try {
-                var archInvocation = com.embabel.agent.api.invocation.AgentInvocation.create(agentPlatform, io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureReport.class);
-                var archReport = archInvocation.invoke(new io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureRequest(request.path(), "General analysis for API context priming"));
-                
-                StringBuilder primedContext = new StringBuilder("Auto-generated Architecture Context:\n");
-                primedContext.append("Summary: ").append(archReport.summary()).append("\n");
-                primedContext.append("Tech Stack: ").append(archReport.technicalStack()).append("\n");
-                
-                if (archReport.modules() != null && !archReport.modules().isEmpty()) {
-                    primedContext.append("Key Modules:\n");
-                    for (var mod : archReport.modules()) {
-                        primedContext.append("- ").append(mod.name()).append(": ").append(mod.responsibility()).append("\n");
-                    }
+        try {
+            var archInvocation = com.embabel.agent.api.invocation.AgentInvocation.create(agentPlatform, io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureReport.class);
+            var archReport = archInvocation.invoke(new io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureRequest(request.path(), "General analysis for API context priming"));
+            
+            techStack = archReport.technicalStack();
+            primedContext.append("Auto-generated Architecture Context:\n");
+            primedContext.append("Summary: ").append(archReport.summary()).append("\n");
+            primedContext.append("Tech Stack: ").append(techStack).append("\n");
+            
+            if (archReport.modules() != null && !archReport.modules().isEmpty()) {
+                primedContext.append("Key Modules:\n");
+                for (var mod : archReport.modules()) {
+                    primedContext.append("- ").append(mod.name()).append(": ").append(mod.responsibility()).append("\n");
                 }
-                finalContext = primedContext.toString();
-                logger.info("ApiAgent", "Context successfully primed by ArchitectureAgent.");
-            } catch (Exception e) {
-                logger.info("ApiAgent", "Architecture priming failed, proceeding with original context. Error: " + e.getMessage());
             }
+            logger.info("ApiAgent", "Context successfully primed. Tech Stack: " + techStack);
+        } catch (Exception e) {
+            logger.info("ApiAgent", "Architecture priming failed, proceeding with original context. Error: " + e.getMessage());
         }
         
-        ApiRequest updatedRequest = new ApiRequest(request.path(), finalContext);
-        return discoverControllers(updatedRequest, ai);
+        return new ContextPrimingState(request, techStack, primedContext.toString());
     }
 
-    @Action(description = "Stage 1: Discovering API controllers and technology stack.")
-    public ApiDiscoveryState discoverControllers(ApiRequest request, Ai ai) {
-        logger.info("ApiAgent", "Stage 1: Discovering controllers and tech stack...");
+    @Action(description = "Stage 1: Discovering API controllers using primed context.")
+    public ApiDiscoveryState discoverControllers(ContextPrimingState priming) {
+        logger.info("ApiAgent", "Stage 1: Discovering controllers for stack: " + priming.techStack());
         
         List<String> rawControllerGrep = new ArrayList<>();
+        String path = priming.request().path();
+
         // Java/Spring
-        rawControllerGrep.addAll(grepTool.grep("@RestController", request.path()));
-        rawControllerGrep.addAll(grepTool.grep("@Controller", request.path()));
+        rawControllerGrep.addAll(grepTool.grep("@RestController", path));
+        rawControllerGrep.addAll(grepTool.grep("@Controller", path));
         // Python/FastAPI/Flask
-        rawControllerGrep.addAll(grepTool.grep("@app\\.", request.path()));
-        rawControllerGrep.addAll(grepTool.grep("@router\\.", request.path()));
-        // Node/Express (common patterns)
-        rawControllerGrep.addAll(grepTool.grep("router\\.(get|post|put|delete)\\(", request.path()));
+        rawControllerGrep.addAll(grepTool.grep("@app\\.", path));
+        rawControllerGrep.addAll(grepTool.grep("@router\\.", path));
+        // Node/Express
+        rawControllerGrep.addAll(grepTool.grep("router\\.(get|post|put|delete)\\(", path));
 
         List<String> controllerFiles = extractUniqueFiles(rawControllerGrep).stream()
                 .filter(this::isValidSourceFile)
                 .collect(Collectors.toList());
 
-        String techStackPrompt = "Analyze the project path: " + request.path() + " and context: " + request.context() + " to identify the main API technology stack (e.g., Spring Boot, FastAPI, Express).";
-        String techStack = ai.withLlmByRole("normal").generateText(techStackPrompt);
-
-        logger.info("ApiAgent", "Found " + controllerFiles.size() + " potential controller files. Tech Stack: " + techStack);
-        return new ApiDiscoveryState(request, controllerFiles, techStack);
+        logger.info("ApiAgent", "Found " + controllerFiles.size() + " potential controller files.");
+        
+        return new ApiDiscoveryState(priming.request(), controllerFiles, priming.techStack());
     }
 
     @Action(description = "Stage 2: Parsing controllers with LLM in parallel batches.")

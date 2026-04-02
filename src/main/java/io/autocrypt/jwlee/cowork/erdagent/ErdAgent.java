@@ -148,7 +148,7 @@ public class ErdAgent {
 
             try {
                 // Use performant model to deeply analyze Java generic types (@OneToMany List<T>) and raw DDL constraints
-                return ai.withLlm(LlmOptions.withLlmForRole("performant").withoutThinking().withMaxTokens(8192))
+                return ai.withLlm(LlmOptions.withLlmForRole("performant").withoutThinking().withMaxTokens(65536))
                         .creating(ExtractedSchemaBatch.class)
                         .fromPrompt(prompt);
             } catch (Exception e) {
@@ -190,7 +190,7 @@ public class ErdAgent {
             "relations", truncate(relationsDump.toString(), 40000)
         ));
 
-        FinalModelData finalData = ai.withLlm(LlmOptions.withLlmForRole("performant").withoutThinking().withMaxTokens(32768))
+        FinalModelData finalData = ai.withLlm(LlmOptions.withLlmForRole("performant").withoutThinking().withMaxTokens(65536))
                 .withPromptContributor(persona)
                 .creating(FinalModelData.class)
                 .fromPrompt(prompt);

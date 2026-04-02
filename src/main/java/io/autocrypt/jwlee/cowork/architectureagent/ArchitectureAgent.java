@@ -10,6 +10,7 @@ import com.embabel.agent.api.annotation.Agent;
 import com.embabel.agent.api.annotation.State;
 import com.embabel.agent.api.common.Ai;
 import com.embabel.agent.prompt.persona.RoleGoalBackstory;
+import com.embabel.common.ai.model.LlmOptions;
 
 import io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureReport;
 import io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureRequest;
@@ -76,7 +77,7 @@ public class ArchitectureAgent {
                 DO NOT try to guess module internals yet. Just map the surface.
                 """.formatted(request.path(), request.context());
 
-        return ai.withLlmByRole("normal")
+        return ai.withLlm(LlmOptions.withLlmForRole("normal").withMaxTokens(65536))
                 .withPromptContributor(persona)
                 .withToolObject(globTool)
                 .withToolObject(readTool)
@@ -100,7 +101,7 @@ public class ArchitectureAgent {
                 Write down your findings, specifically noting the true dependencies, entry points, and any key architectural discoveries based on the code you read.
                 """.formatted(blueprint.suspectedModules(), blueprint.hypothesizedTechStack());
 
-        return ai.withLlmByRole("normal")
+        return ai.withLlm(LlmOptions.withLlmForRole("normal").withMaxTokens(65536))
                 .withPromptContributor(persona)
                 .withToolObject(grepTool)
                 .withToolObject(readTool)
@@ -132,7 +133,7 @@ public class ArchitectureAgent {
                 );
 
         // No tools provided in this final compilation stage. Just synthesis.
-        return ai.withLlmByRole("normal")
+        return ai.withLlm(LlmOptions.withLlmForRole("normal").withMaxTokens(65536))
                 .withPromptContributor(persona)
                 .createObject(prompt, ArchitectureReport.class);
     }

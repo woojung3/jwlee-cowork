@@ -1,0 +1,18 @@
+Analyze the following raw dependency data from a Java/Kotlin project.
+Your goal is to identify the core architecture, hub classes, and any structural violations.
+
+# DOMAIN CONTEXT (From other agents)
+{{ domainContext }}
+
+# RAW DEPENDENCY DATA (JSON)
+{{ rawJson }}
+
+Based on the data, extract:
+1. **Core Hubs**: Classes that are critical to the system's function (e.g., Engines, Core Entities, Main Services). Note their incoming/outgoing dependency counts.
+2. **Modules**: Map the package structure to logical modules.
+3. **Violations**: Detect circular dependencies or layer violations (e.g., a Database Entity depending on a Controller).
+4. **Mermaid Diagrams**: Generate Mermaid code for:
+   - `module-level`: A high-level view of module dependencies.
+   - `class-level`: A detailed view of the top 10 most important hub classes and their relationships.
+
+Return the results in the structured format provided.
