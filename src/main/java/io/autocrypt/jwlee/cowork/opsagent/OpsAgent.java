@@ -69,7 +69,15 @@ public class OpsAgent {
 
     @Action(description = "Stage 0: Context Priming via ArchitectureAgent.")
     public OpsPrimingState prepareOpsContext(OpsRequest request) {
-        logger.info("OpsAgent", "Stage 0: Priming context via ArchitectureAgent...");
+        logger.info("OpsAgent", "Stage 0: Priming context (checking for existing architecture info)...");
+        String inputContext = request.context() != null ? request.context() : "";
+
+        if (inputContext.contains("Architecture Summary") || inputContext.contains("ARCHITECTURE")) {
+            logger.info("OpsAgent", "Architecture context already present, skipping redundant call.");
+            return new OpsPrimingState(request, inputContext);
+        }
+
+        logger.info("OpsAgent", "No architecture info in context, invoking ArchitectureAgent...");
         String archContext = "No prior architecture context available.";
         try {
             var archInvocation = com.embabel.agent.api.invocation.AgentInvocation.create(agentPlatform, io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureReport.class);

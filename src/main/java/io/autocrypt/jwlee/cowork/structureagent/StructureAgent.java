@@ -60,29 +60,43 @@ public class StructureAgent {
 
     @Action(description = "Stage 0: Context Priming via specialized agents.")
     public StructurePrimingState prepareStructureContext(StructureRequest request) {
-        logger.info("StructureAgent", "Stage 0: Priming context from Architecture, ERD, and API agents...");
+        logger.info("StructureAgent", "Stage 0: Priming context (checking for existing analysis in context)...");
         StringBuilder context = new StringBuilder();
+        String inputContext = request.context() != null ? request.context() : "";
 
-        // 1. Architecture Context
-        try {
-            var archInvocation = com.embabel.agent.api.invocation.AgentInvocation.create(agentPlatform, io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureReport.class);
-            var result = archInvocation.invoke(new io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureRequest(request.path(), "Priming for Structure Analysis"));
-            context.append("### ARCHITECTURE\n").append(result.summary()).append("\n");
-        } catch (Exception e) { logger.info("StructureAgent", "Arch priming failed: " + e.getMessage()); }
+        // 1. Architecture Context (Check if already provided by orchestrator)
+        if (inputContext.contains("ARCHITECTURE") || inputContext.contains("Architecture Summary")) {
+            logger.info("StructureAgent", "Architecture info already present in context, skipping call.");
+            context.append(inputContext).append("\n");
+        } else {
+            try {
+                var archInvocation = com.embabel.agent.api.invocation.AgentInvocation.create(agentPlatform, io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureReport.class);
+                var result = archInvocation.invoke(new io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureRequest(request.path(), "Priming for Structure Analysis"));
+                context.append("### ARCHITECTURE\n").append(result.summary()).append("\n");
+            } catch (Exception e) { logger.info("StructureAgent", "Arch priming failed: " + e.getMessage()); }
+        }
 
         // 2. ERD Context
-        try {
-            var erdInvocation = com.embabel.agent.api.invocation.AgentInvocation.create(agentPlatform, io.autocrypt.jwlee.cowork.erdagent.domain.ErdResult.class);
-            var result = erdInvocation.invoke(new io.autocrypt.jwlee.cowork.erdagent.domain.ErdRequest(request.path(), "Identify Core Entities"));
-            context.append("### CORE ENTITIES\n").append(result.markdownContent()).append("\n");
-        } catch (Exception e) { logger.info("StructureAgent", "ERD priming failed: " + e.getMessage()); }
+        if (inputContext.contains("CORE ENTITIES") || inputContext.contains("Data Model & ERD")) {
+            logger.info("StructureAgent", "ERD info already present in context, skipping call.");
+        } else {
+            try {
+                var erdInvocation = com.embabel.agent.api.invocation.AgentInvocation.create(agentPlatform, io.autocrypt.jwlee.cowork.erdagent.domain.ErdResult.class);
+                var result = erdInvocation.invoke(new io.autocrypt.jwlee.cowork.erdagent.domain.ErdRequest(request.path(), "Identify Core Entities"));
+                context.append("### CORE ENTITIES\n").append(result.markdownContent()).append("\n");
+            } catch (Exception e) { logger.info("StructureAgent", "ERD priming failed: " + e.getMessage()); }
+        }
 
         // 3. API Context
-        try {
-            var apiInvocation = com.embabel.agent.api.invocation.AgentInvocation.create(agentPlatform, io.autocrypt.jwlee.cowork.apiagent.domain.ApiResult.class);
-            var result = apiInvocation.invoke(new io.autocrypt.jwlee.cowork.apiagent.domain.ApiRequest(request.path(), "Identify Entry Points"));
-            context.append("### ENTRY POINTS\n").append(result.report()).append("\n");
-        } catch (Exception e) { logger.info("StructureAgent", "API priming failed: " + e.getMessage()); }
+        if (inputContext.contains("ENTRY POINTS") || inputContext.contains("API & Interfaces")) {
+            logger.info("StructureAgent", "API info already present in context, skipping call.");
+        } else {
+            try {
+                var apiInvocation = com.embabel.agent.api.invocation.AgentInvocation.create(agentPlatform, io.autocrypt.jwlee.cowork.apiagent.domain.ApiResult.class);
+                var result = apiInvocation.invoke(new io.autocrypt.jwlee.cowork.apiagent.domain.ApiRequest(request.path(), "Identify Entry Points"));
+                context.append("### ENTRY POINTS\n").append(result.report()).append("\n");
+            } catch (Exception e) { logger.info("StructureAgent", "API priming failed: " + e.getMessage()); }
+        }
 
         return new StructurePrimingState(request, context.toString());
     }
@@ -90,25 +104,57 @@ public class StructureAgent {
     @Action(description = "Stage 1: Extracting raw dependency data via Python script.")
     public RawDataExtractionState extractRawDependencies(StructurePrimingState state) {
         logger.info("StructureAgent", "Stage 1: Running python dependency analyzer...");
-        
+
+        // Defensive check: Ensure python venv and script exist
+        String venvPath = ".venv/bin/python";
+        String scriptPath = "scripts/structure_analyzer.py";
+
+        java.io.File venvFile = new java.io.File(venvPath);
+        java.io.File scriptFile = new java.io.File(scriptPath);
+
+        if (!venvFile.exists() || !scriptFile.exists()) {
+            String errorMsg = String.format("Missing required components: venv=%b, script=%b. " +
+                    "Make sure you have deployed the full package (including .venv and scripts folder).",
+                    venvFile.exists(), scriptFile.exists());
+            logger.info("StructureAgent", "ERROR: " + errorMsg);
+            throw new RuntimeException(errorMsg);
+        }
+
         // Execute python script using venv
-        String command = String.format(".venv/bin/python scripts/structure_analyzer.py %s", state.request().path());
+        String command = String.format("%s %s %s", venvPath, scriptPath, state.request().path());
         String bashJson = bashTool.execute(command);
         
         try {
             JsonNode root = objectMapper.readTree(bashJson);
-            int exitCode = root.get("exitCode").asInt();
-            String stdout = root.get("stdout").asText();
             
-            if (exitCode != 0) {
-                logger.info("StructureAgent", "Python script failed: " + stdout);
-                return new RawDataExtractionState(state.request(), state.domainContext(), "{\"error\": \"Extraction failed\"}");
+            // Check if this is the BashTool wrapper format
+            if (root.has("exitCode") && root.has("stdout")) {
+                int exitCode = root.path("exitCode").asInt(-1);
+                String stdout = root.path("stdout").asText("");
+                String stderr = root.path("stderr").asText("");
+                
+                if (exitCode != 0) {
+                    logger.info("StructureAgent", "Python script failed with exit code " + exitCode);
+                    logger.info("StructureAgent", "STDERR: " + stderr);
+                    throw new RuntimeException("Dependency analysis failed (exit " + exitCode + "): " + stderr);
+                }
+                bashJson = stdout; // Extracted the actual python output
+            } else if (root.has("error")) {
+                throw new RuntimeException("BashTool serialization error: " + bashJson);
+            }
+            // Else: Assume bashJson is ALREADY the pure python output (e.g. { "classes": {...} })
+            // This happens if the tool framework unwraps JSON or if BashTool behavior varies.
+
+            if (bashJson == null || bashJson.trim().isEmpty() || bashJson.equals("{}")) {
+                throw new RuntimeException("Dependency analysis returned empty result. Analysis aborted to prevent hallucination.");
             }
 
-            return new RawDataExtractionState(state.request(), state.domainContext(), stdout);
+            return new RawDataExtractionState(state.request(), state.domainContext(), bashJson);
         } catch (Exception e) {
-            logger.info("StructureAgent", "Failed to parse BashTool output: " + e.getMessage());
-            return new RawDataExtractionState(state.request(), state.domainContext(), "{\"error\": \"Parsing failed\"}");
+            logger.info("StructureAgent", "Failed to process dependency data. Exception: " + e.getMessage());
+            // logger.info("StructureAgent", "Raw returned string was: " + (bashJson.length() > 500 ? bashJson.substring(0, 500) + "..." : bashJson));
+            if (e instanceof RuntimeException) throw (RuntimeException) e;
+            throw new RuntimeException("Parsing failed: " + e.getMessage());
         }
     }
 

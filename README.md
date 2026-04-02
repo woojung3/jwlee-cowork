@@ -125,32 +125,35 @@ export GEMINI_API_KEY="your-api-key"
 
 ---
 
-## 🎯 앞으로 할 일 (Migration Plan)
+## 📦 패키징 및 배포 (Packaging & Deployment)
 
-기존 파이썬 환경(`@llm-agent/**`)에서 동작하던 주요 AI 에이전트들을 마이그레이션할 계획입니다.
+Java(Spring Boot)와 Python 분석 스크립트가 공존하는 본 프로젝트는 `maven-assembly-plugin`을 통해 하나의 배포 패키지(ZIP)로 묶입니다.
 
-### 1. `tc_gen` (SRS 기반 테스트 케이스 자동 생성기)
-- **목표**: 요구사항 명세서(SRS)와 지식 베이스를 바탕으로 엑셀 테스트 케이스를 자동 생성 및 수정.
-- **주요 과제 및 계획**:
-  - **Spring Shell 명령어**: `tc-gen parse`, `tc-gen parse-srs`, `tc-gen generate`, `tc-gen update`
-  - **문서 파싱 및 엑셀 처리**: HTML 파싱은 Jsoup, 엑셀 생성/수정은 Apache POI 라이브러리로 대체.
-  - **RAG(검색 증강 생성) 통합**: Python FAISS 기반 벡터 검색을 Embabel의 로컬 RAG(`ToolishRag`, `LuceneSearchOperations`) 기능으로 마이그레이션하여 요구사항 관련 지식 제공.
-  - **LLM 연동**: 테스트 케이스 JSON 규격 생성 및 대화형 업데이트 기능을 Embabel `Ai` API로 구현.
-  - **패키지 위치**: `agents.tcgen`
+### 1. 배포 패키지 생성
+아래 명령어를 실행하면 `target/` 디렉토리에 JAR 파일과 Python 스크립트가 포함된 ZIP 파일이 생성됩니다.
+```bash
+./mvnw clean package -DskipTests
+```
+- **결과물**: `target/jwlee-cowork-{version}.zip`
 
-### 2. `product_plan_gen` (Product Plan Generation Agent)
-- **목표**: Mermaid 이벤트스토밍 플로우차트를 분석하여 다단계 제품 기획서(마크다운) 묶음 자동 생성.
-- **주요 과제 및 계획**:
-  - **Spring Shell 명령어**: `product-plan-gen generate`
-  - **데이터 파싱**: Mermaid 코드를 정규식으로 파싱하여 노드와 엣지 정보를 추출하는 로직 재작성.
-  - **다단계 워크플로우**: `00_main.md`부터 `08_screen_design.md`에 이르는 순차적 템플릿 생성 과정을 Embabel의 파이프라인으로 재구성 및 JSON 추출 자동화.
-  - **프롬프트 관리**: 파이썬 하드코딩 프롬프트와 템플릿 파일들을 Java 리소스 폴더 기반 템플릿 읽기로 변경.
-  - **패키지 위치**: `agents.productplan`
+### 2. 배포 및 실행 환경 설정
+ZIP 파일의 압축을 해제한 후, Python 가상환경(`.venv`)을 설정해야 Python 기반 에이전트(예: StructureAgent)가 정상 동작합니다.
 
-### 3. `presentation_gen` (발표자료 자동 생성기)
-- **목표**: 텍스트 초안과 참조 문서를 바탕으로 통일된 스타일의 Obsidian 슬라이드 마크다운 생성.
-- **주요 과제 및 계획**:
-  - **Spring Shell 명령어**: `presentation-gen create-style-guide`, `presentation-gen generate`
-  - **스타일 분석 및 본문 생성**: 샘플 파일에서 스타일 가이드를 추출하는 기능과, 청크별로 반복하여 슬라이드를 생성하는 기능 이식.
-  - **LLM 연동**: Embabel `Ai` API를 통해 문맥(Context)을 누적시키면서 슬라이드를 순차 생성하도록 구현.
-  - **패키지 위치**: `agents.presentation`
+```bash
+# 1. 압축 해제
+unzip jwlee-cowork-0.1.0-SNAPSHOT.zip -d deploy/
+cd deploy/
+
+# 2. Python 가상환경 생성 및 의존성 설치
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+deactivate
+
+# 3. 애플리케이션 실행
+java -jar jwlee-cowork-0.1.0-SNAPSHOT.jar
+```
+
+### 3. 주의 사항
+- **Python 의존성**: `StructureAgent` 등 일부 에이전트는 로컬의 `.venv/bin/python`과 `scripts/` 폴더를 직접 참조합니다. JAR 파일만 복사해서 실행할 경우 분석 실패 및 에러가 발생하오니 반드시 전체 패키지 구조를 유지해 주세요.
+- **방어 로직**: 스크립트나 가상환경이 누락된 경우, 시스템은 할루시네이션(환각) 방지를 위해 분석을 중단하고 예외를 발생시킵니다.

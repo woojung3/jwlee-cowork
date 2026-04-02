@@ -79,15 +79,18 @@ public class DeepInsightAgent {
             failedAgents.add("ArchitectureAgent");
         }
 
-        String enrichedContext = userContext + "\n\n[Architecture Summary]\n" + (archObj != null ? archObj.summary() : "Unavailable");
+        // Build rolling context to avoid redundant calls in sub-agents
+        StringBuilder rollingContext = new StringBuilder(userContext);
+        rollingContext.append("\n\n[Architecture Summary]\n").append(archReport);
 
         // 2. ErdAgent
         String erdReport = "분석 실패";
         try {
             logger.info("DeepInsightAgent", "[2/5] Invoking ErdAgent...");
             var invocation = AgentInvocation.create(agentPlatform, ErdResult.class);
-            var result = invocation.invoke(new ErdRequest(path, enrichedContext));
+            var result = invocation.invoke(new ErdRequest(path, rollingContext.toString()));
             erdReport = result.markdownContent();
+            rollingContext.append("\n\n[Data Model & ERD]\n").append(erdReport);
         } catch (Exception e) {
             logger.info("DeepInsightAgent", "ErdAgent failed: " + e.getMessage());
             failedAgents.add("ErdAgent");
@@ -98,8 +101,9 @@ public class DeepInsightAgent {
         try {
             logger.info("DeepInsightAgent", "[3/5] Invoking ApiAgent...");
             var invocation = AgentInvocation.create(agentPlatform, ApiResult.class);
-            var result = invocation.invoke(new ApiRequest(path, enrichedContext));
+            var result = invocation.invoke(new ApiRequest(path, rollingContext.toString()));
             apiReport = result.report();
+            rollingContext.append("\n\n[API & Interfaces]\n").append(apiReport);
         } catch (Exception e) {
             logger.info("DeepInsightAgent", "ApiAgent failed: " + e.getMessage());
             failedAgents.add("ApiAgent");
@@ -110,19 +114,20 @@ public class DeepInsightAgent {
         try {
             logger.info("DeepInsightAgent", "[4/5] Invoking OpsAgent...");
             var invocation = AgentInvocation.create(agentPlatform, OpsResult.class);
-            var result = invocation.invoke(new OpsRequest(path, enrichedContext));
+            var result = invocation.invoke(new OpsRequest(path, rollingContext.toString()));
             opsReport = result.report();
+            rollingContext.append("\n\n[Ops & Infrastructure]\n").append(opsReport);
         } catch (Exception e) {
             logger.info("DeepInsightAgent", "OpsAgent failed: " + e.getMessage());
             failedAgents.add("OpsAgent");
         }
 
-        // 5. StructureAgent
+        // 5. StructureAgent (Receives full context with Arch, ERD, API, Ops to prevent recursive calls)
         String structureReport = "분석 실패";
         try {
             logger.info("DeepInsightAgent", "[5/5] Invoking StructureAgent...");
             var invocation = AgentInvocation.create(agentPlatform, FinalStructureReport.class);
-            var result = invocation.invoke(new StructureRequest(path, enrichedContext));
+            var result = invocation.invoke(new StructureRequest(path, rollingContext.toString()));
             structureReport = result.report();
         } catch (Exception e) {
             logger.info("DeepInsightAgent", "StructureAgent failed: " + e.getMessage());

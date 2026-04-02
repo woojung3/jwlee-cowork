@@ -6,11 +6,16 @@ Synthesize the following extracted API endpoint information into a professional 
 # Extracted Data
 {{ batchesSummary }}
 
-The report must include:
-1. **#### API 개요 (Overview)**: General summary of the APIs discovered.
-2. **#### 상세 엔드포인트 문서 (Detailed Endpoint Documentation)**:
-   - Grouped by Controller or Module.
-   - For each endpoint: Method, Full Path, Description, Parameters, and Return Type.
-3. **#### 권장 사항 (Recommendations)**: Any observations on API design consistency or potential improvements.
+**OUTPUT FORMAT RESTRICTION**:
+You MUST output your report EXACTLY matching the following structure. Do not add any text outside of the <report> tags. NEVER use `#`, `##`, or `###` headings. Only use `####` and `#####`.
 
-Ensure all technical terms are used correctly in a professional architectural context.
+<report>
+#### API 개요 (Overview)
+(Write the general summary of the APIs discovered here)
+
+#### 상세 엔드포인트 문서 (Detailed Endpoint Documentation)
+(Group by Controller or Module. List Method, Path, Description, Parameters, Return Type here)
+
+#### 권장 사항 (Recommendations)
+(Write observations on API design consistency or improvements here)
+</report>

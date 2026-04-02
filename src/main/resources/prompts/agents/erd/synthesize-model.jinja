@@ -16,7 +16,14 @@ CRITICAL RULES:
    - Example: "BIGINT id PK", "VARCHAR name", "BIGINT user_id FK"
 4. **Relations Synthesis**: Combine and deduplicate all relations. Ensure all relationships use the standardized snake_case table names. Actively infer missing relations if a column like `team_id` exists but the relation line wasn't explicitly extracted.
 5. **Relationship Types**: Use OneToOne, OneToMany, ManyToOne, ManyToMany.
-6. **Korean Summary**: Write the final architectural explanation (`explanation` field) in professional Korean.
-   - **HEADER LEVEL**: Use `####` (Level 4) for any sub-headings inside the explanation to ensure it fits into a larger report.
-   - **IMPORTANT**: If you find "Orphan Tables" (tables that have NO incoming or outgoing relationships), list their names at the end of your explanation under a heading **#### [독립 테이블 목록]**, and briefly guess their purpose.
-   - Mention in the explanation that these isolated tables were identified but excluded from the visual diagram for clarity.
+
+**OUTPUT FORMAT RESTRICTION**:
+For the `explanation` field of your response, you MUST output your architectural explanation EXACTLY in the following format. Do not add any titles, greetings, or text outside of the <report> tags. NEVER use `#`, `##`, or `###` headings. Only use `####` and `#####`. Do NOT generate a mermaid diagram (it will be added automatically by the system).
+
+<report>
+#### 핵심 도메인 분석
+(Write your analysis of the core domains here in professional Korean)
+
+#### 독립 테이블 목록
+(If there are orphan tables with no relationships, list them here and guess their purpose. If none, write '독립 테이블 없음')
+</report>

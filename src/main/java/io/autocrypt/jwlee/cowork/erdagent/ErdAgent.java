@@ -66,9 +66,11 @@ public class ErdAgent {
 
     @Action(description = "Stage 0: Context Priming via ArchitectureAgent.")
     public EntityDiscoveryState prepareContext(ErdRequest request) {
-        String finalContext = request.context();
+        String finalContext = request.context() != null ? request.context() : "";
         
-        if (finalContext == null || finalContext.trim().length() < 10) {
+        if (finalContext.contains("Architecture Summary") || finalContext.contains("ARCHITECTURE")) {
+            logger.info("ErdAgent", "Stage 0: Architecture context already present, skipping redundant call.");
+        } else if (finalContext.trim().length() < 10) {
             logger.info("ErdAgent", "Stage 0: Context is empty or too short. Invoking ArchitectureAgent for structural priming...");
             try {
                 var archInvocation = com.embabel.agent.api.invocation.AgentInvocation.create(agentPlatform, io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureReport.class);

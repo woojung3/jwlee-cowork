@@ -18,13 +18,22 @@ HSM Integration: {{ securityObs.hsmIntegration }}
 Monitoring Tools: {{ securityObs.monitoringTools }}
 Security Gaps: {{ securityObs.securityGaps }}
 
-The report must include:
-1. **#### 운영 환경 요약 (Operational Summary)**: Final verdict on whether this is an Appliance, Cloud, or On-prem solution.
-2. **#### 신뢰성 및 가용성 진단 (Reliability Diagnostic)**: Assessment of the HA status and potential single points of failure.
-3. **#### IaC 및 자동화 현황 (IaC Status)**: Evaluation of infrastructure-as-code usage.
-4. **#### 보안 및 관측 가능성 (Security & Observability)**: Review of secrets management and monitoring capabilities.
-5. **#### 격차 분석 및 개선 권고 (Gap Analysis & Recommendations)**:
-   - Identify missing critical infrastructure components.
-   - Provide concrete recommendations for improvement (e.g., "Add Terraform scripts for EKS", "Migrate to Redis for session clustering").
+**OUTPUT FORMAT RESTRICTION**:
+You MUST output your report EXACTLY matching the following structure. Do not add any text outside of the <report> tags. NEVER use `#`, `##`, or `###` headings. Only use `####` and `#####`.
 
-Use professional IT architecture terminology in Korean.
+<report>
+#### 운영 환경 요약 (Operational Summary)
+(Final verdict on whether this is an Appliance, Cloud, or On-prem solution based on evidence)
+
+#### 신뢰성 및 가용성 진단 (Reliability Diagnostic)
+(Assessment of the HA status and potential single points of failure)
+
+#### IaC 및 자동화 현황 (IaC Status)
+(Evaluation of infrastructure-as-code usage)
+
+#### 보안 및 관측 가능성 (Security & Observability)
+(Review of secrets management and monitoring capabilities)
+
+#### 격차 분석 및 개선 권고 (Gap Analysis & Recommendations)
+(Identify missing critical infrastructure components and provide concrete recommendations)
+</report>

@@ -65,7 +65,17 @@ public class ApiAgent {
 
     @Action(description = "Stage 0: Context Priming via ArchitectureAgent.")
     public ContextPrimingState prepareContext(ApiRequest request) {
-        logger.info("ApiAgent", "Stage 0: Priming context via ArchitectureAgent...");
+        logger.info("ApiAgent", "Stage 0: Priming context (checking for existing architecture info)...");
+        String inputContext = request.context() != null ? request.context() : "";
+        
+        if (inputContext.contains("Architecture Summary") || inputContext.contains("ARCHITECTURE")) {
+            logger.info("ApiAgent", "Architecture context already present, skipping redundant call.");
+            // Try to extract tech stack from context if possible, or leave as Unknown
+            String techStack = inputContext.contains("Stack:") ? inputContext.split("Stack:")[1].split("\n")[0].trim() : "Available in context";
+            return new ContextPrimingState(request, techStack, inputContext);
+        }
+
+        logger.info("ApiAgent", "No architecture info in context, invoking ArchitectureAgent...");
         String techStack = "Unknown";
         StringBuilder primedContext = new StringBuilder();
         

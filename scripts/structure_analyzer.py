@@ -16,12 +16,9 @@ class StructureAnalyzer:
             subprocess.run(["rg", "--version"], capture_output=True, check=True)
             return True
         except (subprocess.CalledProcessError, FileNotFoundError):
-            print("ERROR: 'ripgrep (rg)' is not installed. Please install it using: sudo apt install ripgrep")
-            sys.exit(1)
+            return False # Fallback to os.walk
 
     def analyze(self):
-        self.check_ripgrep()
-        
         # 1. Discover all Java/Kotlin files
         for root, _, files in os.walk(self.root_path):
             if any(p in root for p in ["/target/", "/build/", "/.git/", "/node_modules/"]):
@@ -32,10 +29,68 @@ class StructureAnalyzer:
                     self._parse_file(full_path)
         
         # 2. Build Dependency Graph data
+        in_deps = defaultdict(int)
+        out_deps = defaultdict(int)
+        package_deps = defaultdict(lambda: defaultdict(int))
+
+        for full_name, info in self.classes.items():
+            src_pkg = info["package"]
+            for imp in info["imports"]:
+                # Only track internal dependencies
+                target_class = next((c for c in self.classes.keys() if imp.startswith(c)), None)
+                if target_class:
+                    in_deps[target_class] += 1
+                    out_deps[full_name] += 1
+                    
+                    target_pkg = self.classes[target_class]["package"]
+                    if src_pkg != target_pkg:
+                        package_deps[src_pkg][target_pkg] += 1
+
+        # 3. Identify Top Hubs (Most connected classes)
+        hubs = []
+        all_class_names = sorted(self.classes.keys(), key=lambda x: in_deps[x] + out_deps[x], reverse=True)
+        for c in all_class_names[:30]:
+            hubs.append({
+                "className": c.split('.')[-1],
+                "packagePath": self.classes[c]["package"],
+                "incomingDependencies": in_deps[c],
+                "outgoingDependencies": out_deps[c],
+                "role": "Interface" if self.classes[c]["is_interface"] else "Class"
+            })
+
+        # 4. Summarize Module Relationships
+        # Group by first 4 package segments
+        module_relations = []
+        for src, targets in package_deps.items():
+            src_mod = ".".join(src.split('.')[:5])
+            for target, count in targets.items():
+                target_mod = ".".join(target.split('.')[:5])
+                if src_mod != target_mod:
+                    module_relations.append({"from": src_mod, "to": target_mod, "weight": count})
+
         return {
-            "classes": self.classes,
-            "modules": self._infer_modules()
+            "summary": {
+                "totalClasses": len(self.classes),
+                "totalPackages": len(set(c["package"] for c in self.classes.values())),
+            },
+            "coreHubs": hubs,
+            "moduleDependencies": module_relations[:100], # Top 100 relations
+            "potentialViolations": self._find_potential_violations(package_deps)
         }
+
+    def _find_potential_violations(self, package_deps):
+        violations = []
+        for src, targets in package_deps.items():
+            for target, count in targets.items():
+                # Example heuristic: lower layer (domain) depending on higher layer (service/api)
+                if (".domain." in src and (".service." in target or ".api." in target)):
+                    violations.append({
+                        "source": src,
+                        "target": target,
+                        "type": "LayerViolation",
+                        "description": f"Domain package depends on {target.split('.')[-1]} (Count: {count})"
+                    })
+        return violations
 
     def _parse_file(self, file_path):
         try:
@@ -55,34 +110,16 @@ class StructureAnalyzer:
         class_name = class_match.group(1)
         full_class_name = f"{package}.{class_name}"
 
-        # Imports
+        # Imports (internal project ones usually start with similar base package)
         imports = re.findall(r'import\s+(?:static\s+)?([\w\.]+);', content)
-        
-        # Simple Dependency Injection (Constructor/Field)
-        # Regex to find final fields or @Autowired/@Inject (common patterns)
-        injected_types = []
-        # Pattern for: private final ServiceName service;
-        fields = re.findall(r'(?:private\s+)?final\s+([\w<>]+)\s+\w+;', content)
-        injected_types.extend(fields)
-        # Pattern for: @Autowired private ServiceName service;
-        annotated = re.findall(r'@(?:Autowired|Inject|Resource)\s+(?:private\s+)?([\w<>]+)\s+\w+;', content)
-        injected_types.extend(annotated)
-
-        # Inheritance / Implementation
-        extends = re.search(r'extends\s+([\w\.]+)', content)
-        implements = re.search(r'implements\s+([\w\.,\s]+)', content)
-        impl_list = [i.strip() for i in implements.group(1).split(',')] if implements else []
 
         self.classes[full_class_name] = {
             "name": class_name,
             "package": package,
-            "file": os.path.relpath(file_path, self.root_path),
             "imports": imports,
-            "injected": list(set(injected_types)),
-            "extends": extends.group(1) if extends else None,
-            "implements": impl_list,
             "is_interface": "interface" in content[:content.find(class_name)]
         }
+
 
     def _infer_modules(self):
         # Assume top 4/5 segments of package represent a module in this workspace
