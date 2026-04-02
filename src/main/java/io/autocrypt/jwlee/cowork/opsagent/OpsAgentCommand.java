@@ -4,6 +4,7 @@ import com.embabel.agent.core.AgentPlatform;
 import io.autocrypt.jwlee.cowork.core.commands.BaseAgentCommand;
 import io.autocrypt.jwlee.cowork.opsagent.domain.OpsRequest;
 import io.autocrypt.jwlee.cowork.opsagent.domain.OpsResult;
+import org.springframework.shell.standard.ShellCommandGroup;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
@@ -14,6 +15,7 @@ import java.util.concurrent.ExecutionException;
  * CLI Command for OpsAgent.
  */
 @ShellComponent
+@ShellCommandGroup("Code Analysis Command")
 public class OpsAgentCommand extends BaseAgentCommand {
 
     public OpsAgentCommand(AgentPlatform agentPlatform) {

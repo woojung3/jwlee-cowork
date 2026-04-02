@@ -4,6 +4,7 @@ import com.embabel.agent.core.AgentPlatform;
 import io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureReport;
 import io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureRequest;
 import io.autocrypt.jwlee.cowork.core.commands.BaseAgentCommand;
+import org.springframework.shell.standard.ShellCommandGroup;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
@@ -13,6 +14,7 @@ import org.springframework.shell.standard.ShellOption;
  * Extends BaseAgentCommand to support standard debug flags (-p, -r).
  */
 @ShellComponent
+@ShellCommandGroup("Code Analysis Command")
 public class ArchitectureCommand extends BaseAgentCommand {
 
     public ArchitectureCommand(AgentPlatform agentPlatform) {

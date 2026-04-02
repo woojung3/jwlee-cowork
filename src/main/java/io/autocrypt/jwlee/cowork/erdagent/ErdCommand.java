@@ -4,6 +4,7 @@ import com.embabel.agent.core.AgentPlatform;
 import io.autocrypt.jwlee.cowork.core.commands.BaseAgentCommand;
 import io.autocrypt.jwlee.cowork.erdagent.domain.ErdRequest;
 import io.autocrypt.jwlee.cowork.erdagent.domain.ErdResult;
+import org.springframework.shell.standard.ShellCommandGroup;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
@@ -11,6 +12,7 @@ import org.springframework.shell.standard.ShellOption;
 import java.util.concurrent.ExecutionException;
 
 @ShellComponent
+@ShellCommandGroup("Code Analysis Command")
 public class ErdCommand extends BaseAgentCommand {
 
     public ErdCommand(AgentPlatform agentPlatform) {

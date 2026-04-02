@@ -4,6 +4,7 @@ import com.embabel.agent.core.AgentPlatform;
 import io.autocrypt.jwlee.cowork.apiagent.domain.ApiRequest;
 import io.autocrypt.jwlee.cowork.apiagent.domain.ApiResult;
 import io.autocrypt.jwlee.cowork.core.commands.BaseAgentCommand;
+import org.springframework.shell.standard.ShellCommandGroup;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
@@ -14,6 +15,7 @@ import java.util.concurrent.ExecutionException;
  * CLI Command for ApiAgent.
  */
 @ShellComponent
+@ShellCommandGroup("Code Analysis Command")
 public class ApiAgentCommand extends BaseAgentCommand {
 
     public ApiAgentCommand(AgentPlatform agentPlatform) {
