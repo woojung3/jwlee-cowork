@@ -1,0 +1,21 @@
+USER REQUEST / CONTEXT:
+{{ context }}
+
+PARTIAL TABLES EXTRACTED FROM MULTIPLE BATCHES:
+{{ tables }}
+
+PARTIAL RELATIONS EXTRACTED FROM MULTIPLE BATCHES:
+{{ relations }}
+
+Your task is to synthesize these partial extractions into a single, cohesive, and deduplicated database model.
+
+CRITICAL RULES:
+1. **Deduplication & Union**: The same table might have been extracted multiple times. You must combine the columns into a single table representation. DO NOT drop any table or any column from the input.
+2. **Naming Alignment**: Convert any camelCase table or column names (often from JPA) to snake_case to match the DDL standards.
+3. **Column Format**: Every column MUST be formatted as "DATA_TYPE COLUMN_NAME [PK|FK]". If a type is unknown, use "UNKNOWN_TYPE".
+   - Example: "BIGINT id PK", "VARCHAR name", "BIGINT user_id FK"
+4. **Relations Synthesis**: Combine and deduplicate all relations. Ensure all relationships use the standardized snake_case table names. Actively infer missing relations if a column like `team_id` exists but the relation line wasn't explicitly extracted.
+5. **Relationship Types**: Use OneToOne, OneToMany, ManyToOne, ManyToMany.
+6. **Korean Summary**: Write the final architectural explanation (`explanation` field) in professional Korean.
+   - **IMPORTANT**: If you find "Orphan Tables" (tables that have NO incoming or outgoing relationships), list their names at the end of your explanation under a heading **[독립 테이블 목록]**, and briefly guess their purpose.
+   - Mention in the explanation that these isolated tables were identified but excluded from the visual diagram for clarity.

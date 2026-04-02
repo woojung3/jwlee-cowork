@@ -1,0 +1,24 @@
+USER REQUEST / CONTEXT:
+{{ context }}
+
+RAW DDL/SCHEMA CONTENT (SOURCE OF TRUTH):
+{{ ddl }}
+
+EXTRACTED JPA RELATIONSHIP ANALYSIS:
+{{ jpaAnalysis }}
+
+Analyze the provided inputs to generate a comprehensive Mermaid ERD.
+
+CRITICAL RULES:
+1. **Source of Truth**: The DDL (RAW DDL/SCHEMA CONTENT) is the absolute source of truth for all physical elements: table names, column names, constraints, and data types.
+2. **Naming Convention Resolution**: JPA entities typically use camelCase (e.g., `userId`), while DDL uses snake_case (e.g., `user_id`). You MUST automatically bridge this gap. If the JPA analysis shows a relationship based on `userId` linking to `users`, you MUST apply that logical relationship to the physical `user_id` column and the `users` table in the DDL.
+3. **Logical Inference**: Modern backends often use "loose coupling" by storing ID fields (like `Long teamId`) without explicit `@ManyToOne` annotations. You MUST actively infer these logical relationships from the column names (e.g., `team_id` in DDL logically connects to `teams` table) and draw the corresponding connection lines (`||--o{`). Do NOT omit relationship lines just because explicit JPA annotations are missing.
+4. **Synthesis**: Combine the physical structure from the DDL with the logical relationships (Foreign Keys, 1:N, N:1, etc.) discovered in the JPA analysis or inferred from naming conventions.
+
+Your task:
+1. Synthesize all identified tables, columns, and relationships into a single, highly detailed, valid Mermaid ERD.
+2. Write a summary of the database architecture and your inferred relationships in professional Korean.
+
+OUTPUT FORMAT:
+Output your response as standard Markdown. 
+Include the Korean explanation first, followed by the Mermaid diagram wrapped in ```mermaid ... ``` code blocks. Do not use JSON.

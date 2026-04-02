@@ -1,0 +1,13 @@
+Analyze the following Java/Kotlin JPA entity source code.
+Your task is to extract structural metadata. DO NOT summarize the business logic.
+
+Extract exactly:
+1. className: The name of the Java/Kotlin class.
+2. tableName: The mapped database table name (from @Table(name="..."), or derived from the class name).
+3. relationships: A list of relationships defined by annotations like @ManyToOne, @OneToMany, @OneToOne, @ManyToMany.
+   - targetEntity: The class name of the related entity.
+   - relationType: The type of relationship (e.g., "1:N", "N:1", "1:1", "N:M").
+   - joinColumnOrMappedBy: The physical column name from @JoinColumn(name="..."), or the 'mappedBy' field name.
+
+SOURCE CODE:
+{{ sourceCode }}

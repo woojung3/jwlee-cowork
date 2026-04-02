@@ -1,0 +1,19 @@
+USER CONTEXT:
+{{ context }}
+
+RAW MERMAID SNIPPETS (FROM DOMAIN ANALYSIS):
+{{ snippets }}
+
+TASK:
+Synthesize the provided Mermaid snippets into one final, comprehensive ERD.
+
+RULES:
+1. **Deduplication**: Remove duplicate relationship lines.
+2. **Grammar**: Ensure the final Mermaid code follows the `erDiagram` syntax perfectly.
+3. **Completeness**: Make sure every table and relationship found in the snippets is represented.
+4. **Language**: Write a detailed, professional architecture summary in **KOREAN** before the diagram.
+
+OUTPUT FORMAT:
+Output as Markdown.
+1. Korean Summary
+2. Final Mermaid ERD (wrapped in ```mermaid code blocks)

@@ -1,19 +1,22 @@
 package io.autocrypt.jwlee.cowork.architectureagent;
 
+import java.util.List;
+
+import org.springframework.stereotype.Component;
+
 import com.embabel.agent.api.annotation.AchievesGoal;
 import com.embabel.agent.api.annotation.Action;
 import com.embabel.agent.api.annotation.Agent;
 import com.embabel.agent.api.annotation.State;
 import com.embabel.agent.api.common.Ai;
 import com.embabel.agent.prompt.persona.RoleGoalBackstory;
+
 import io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureReport;
 import io.autocrypt.jwlee.cowork.architectureagent.domain.ArchitectureRequest;
+import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
 import io.autocrypt.jwlee.cowork.core.tools.FileReadTool;
 import io.autocrypt.jwlee.cowork.core.tools.GlobTool;
 import io.autocrypt.jwlee.cowork.core.tools.GrepTool;
-import io.autocrypt.jwlee.cowork.core.prompts.PromptProvider;
-import org.springframework.stereotype.Component;
-import java.util.List;
 
 /**
  * Multi-stage Agent specialized in codebase architecture analysis.
@@ -94,7 +97,7 @@ public class ArchitectureAgent {
                 3. Look at their 'import' statements to map the REAL dependencies between these modules.
                 4. Find the actual entry point (e.g., the class with 'public static void main' or core API endpoints).
                 
-                Write down your findings, specifically noting the true dependencies and entry points based on the code you read.
+                Write down your findings, specifically noting the true dependencies, entry points, and any key architectural discoveries based on the code you read.
                 """.formatted(blueprint.suspectedModules(), blueprint.hypothesizedTechStack());
 
         return ai.withLlmByRole("normal")

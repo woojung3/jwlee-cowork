@@ -1,0 +1,22 @@
+You are analyzing the **{{ domain }}** domain.
+Warning/Hint: {{ warning }}
+
+TARGET TABLES FOR THIS DEEP DIVE:
+{{ tables }}
+
+--- DDL CONTENT (Source of Truth) ---
+{{ ddl }}
+
+--- JPA RELATIONSHIP ANALYSIS (Supplemental) ---
+{{ jpa }}
+
+TASK:
+Generate a Mermaid `erDiagram` snippet for these target tables.
+
+RULES:
+1. **Precision**: Include ALL columns, data types, PK, and FK for the target tables. Do not omit anything.
+2. **References**: If a target table relates to an external table (not in the list), you MUST still draw the relationship line and declare the external table name (even if it has no columns).
+3. **Cardinality**: Use correct Mermaid cardinality (e.g., `||--o{`).
+4. **Naming**: Bridge the gap between snake_case (DDL) and camelCase (JPA).
+
+Output ONLY the Mermaid code snippet (starting with `erDiagram` is fine, we will merge them later). Do not include any other text.
