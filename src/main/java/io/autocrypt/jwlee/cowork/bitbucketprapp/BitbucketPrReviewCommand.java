@@ -21,13 +21,14 @@ public class BitbucketPrReviewCommand extends BaseAgentCommand {
     public void prReview(
             @ShellOption(help = "저장소 슬러그 (예: autocrypt/securityplatform)", defaultValue = "autocrypt/securityplatform") String repo,
             @ShellOption(help = "Pull Request ID") Long prId,
-            @ShellOption(help = "제품 매뉴얼 폴더 경로", defaultValue = "guides") String manuals,
-            @ShellOption(help = "표준 문서 폴더 경로", defaultValue = "standards") String standards,
-            @ShellOption(help = "스타일 가이드 URL", defaultValue = "https://auto-jira.atlassian.net/wiki/x/EwBfN") String styleGuide,
+            @ShellOption(help = "제품 매뉴얼 폴더 경로", defaultValue = ShellOption.NULL) String manuals,
+            @ShellOption(help = "표준 문서 폴더 경로", defaultValue = ShellOption.NULL) String standards,
+            @ShellOption(help = "스타일 가이드 URL") String styleGuide,
+            @ShellOption(help = "아키텍처 가이드 URL") String archGuide,
             @ShellOption(help = "프롬프트 표시 여부", defaultValue = "false") boolean showPrompts,
             @ShellOption(help = "응답 표시 여부", defaultValue = "false") boolean showResponses
     ) throws Exception {
-        PrReviewRequest request = new PrReviewRequest(repo, prId, manuals, standards, styleGuide);
+        PrReviewRequest request = new PrReviewRequest(repo, prId, manuals, standards, styleGuide, archGuide);
         InitialState initialState = new InitialState(request);
 
         ProcessOptions options = getOptions(showPrompts, showResponses);

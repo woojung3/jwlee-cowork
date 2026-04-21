@@ -42,11 +42,15 @@ CodeComment:
   severity: String # "MUST_FIX" | "SHOULD_FIX" | "SUGGESTION"
   criteriaId: String # 10개 기준 중 어떤 것에 해당하는지
 
-# 개별 파일/세그먼트 분석 결과
-AnalysisResult:
+# 개별 파일/번들 분석 결과 (스타일)
+StyleAnalysisResult:
   comments: List<CodeComment>
-  score: Integer # 0-100 (분석된 세그먼트의 품질 점수)
-  isTruncated: boolean # 파일이 너무 길어 일부만 분석되었는지 여부
+  score: Integer # 0-100
+
+# 개별 파일/번들 분석 결과 (아키텍처)
+ArchAnalysisResult:
+  comments: List<CodeComment>
+  score: Integer # 0-100
 
 # 최종 수합 리포트
 FinalReviewReport:
@@ -63,15 +67,24 @@ FinalReviewReport:
 State: InitialState:
   request: PrReviewRequest
 
-State: ContextReadyState:
+State: DraftContext:
   request: PrReviewRequest
   diffSegments: List<DiffSegment> # GitTools로 추출된 파일별 Diff
-  manualsRagKey: String # 매뉴얼 RAG 인스턴스 식별자
-  standardsRagKey: String # 표준 문서 RAG 인스턴스 식별자
+  manualsRagKey: String 
+  standardsRagKey: String 
+  styleGuideContent: String
+
+State: ReadyContext:
+  request: PrReviewRequest
+  bundles: List<ConcatenatedDiff> # 토큰 제한에 맞춰 묶인 Diff 번들
+  manualsRagKey: String
+  standardsRagKey: String
+  styleGuideContent: String
+  archGuideContent: String
 
 State: AnalysisState:
-  results: List<AnalysisResult>
-  processedCount: int
+  styleResults: List<StyleAnalysisResult>
+  archResults: List<ArchAnalysisResult>
 ```
 
 ## 5. Actions
@@ -79,19 +92,24 @@ State: AnalysisState:
 ### Action: PrepareReviewContext
 - **Goal**: RAG 인스턴스 초기화 및 PR Diff 데이터 로드
 - **Input**: `InitialState`
-- **Output**: `ContextReadyState`
+- **Output**: `DraftContext`
+
+### Action: ConcatenateSegments
+- **Goal**: 효율적인 분석을 위해 Diff 세그먼트를 번들로 묶음
+- **Input**: `DraftContext`
+- **Output**: `ReadyContext`
 - **Logic**:
-  - `LocalRagTools`를 사용하여 `manualsDir`과 `standardsDir`을 인덱싱(최초 1회)하거나 기존 인덱스를 오픈합니다.
-  - `GitTools`를 통해 해당 PR의 Diff를 가져와 파일별로 분리합니다.
-  - 파일당 최대 라인 수(기본 500라인)를 초과하는 경우 절단(Truncate) 처리를 수행하고 `isTruncated` 플래그를 세팅합니다.
+  - C/H 파일 등 연관된 파일은 가급적 같은 번들에 포함시킵니다.
+  - 번들당 약 5000 토큰(약 20,000자)을 넘지 않도록 구성합니다.
+  - 아키텍처 가이드 문서를 Confluence에서 로드합니다.
 
 ### Action: AnalyzeCodeSegment
-- **Goal**: 개별 Diff 세그먼트에 대해 10개 이상의 엄격한 기준을 바탕으로 심층 분석 수행
-- **Input**: `ContextReadyState`
-- **Output**: `AnalysisResult`
+- **Goal**: 번들링된 Diff에 대해 스타일 및 아키텍처 분석을 병렬 수행
+- **Input**: `ReadyContext`
+- **Output**: `AllAnalysisResults` (StyleAnalysisResult 리스트와 ArchAnalysisResult 리스트 포함)
 - **LLM Configuration**:
-  - `role`: performant (Gemini 2.5 Pro 등 고성능 모델)
-  - `temperature`: 0.1 (일관성 있는 정량적 평가를 위해 낮게 설정)
+  - `role`: performant
+  - `temperature`: 0.1
   - `template`: `agents/bitbucketprapp/analyze-code.jinja`
 - **Prompt Requirements (The 10+ Criteria)**:
   1. **논리적 무결성**: 알고리즘 오류, Edge Case 처리 누락.
