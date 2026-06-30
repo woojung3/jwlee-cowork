@@ -16,4 +16,4 @@ embabel:
           custom:
             api-key: ${LITELLM_API_KEY:${LITELLM_MASTER_KEY:}}
             base-url: ${LITELLM_BASE_URL:https://aigw.autocrypt.co.kr}
-            models: claude-sonnet-4-6,claude-opus-4-8,claude-haiku-4-5
+            models: claude-sonnet-4-6,claude-opus-4-8,claude-haiku-4-5,gemini-3.1-flash-lite,gemini-3.5-flash,llama-4-maverick,codestral-2,deepseek-r1,gemma-4.26b,glm-5,deepseek-v3.2,qwen3-80b-instruct,qwen3-80b-thinking,gpt-oss-120b,qwen3-coder-480b

@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: gemini
+    active: vertex
   main:
     banner-mode: off
     log-startup-info: false
