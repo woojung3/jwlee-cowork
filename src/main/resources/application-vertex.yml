@@ -1,0 +1,19 @@
+embabel:
+  models:
+    default-llm: claude-sonnet-4-6
+    default-embedding-model: embedding
+    llms:
+      simple: claude-haiku-4-5
+      normal: claude-sonnet-4-6
+      performant: claude-opus-4-8
+  agent:
+    platform:
+      ranking:
+        llm: claude-haiku-4-5
+        max-attempts: 5
+      models:
+        openai:
+          custom:
+            api-key: ${LITELLM_API_KEY:${LITELLM_MASTER_KEY:}}
+            base-url: ${LITELLM_BASE_URL:https://aigw.autocrypt.co.kr}
+            models: claude-sonnet-4-6,claude-opus-4-8,claude-haiku-4-5

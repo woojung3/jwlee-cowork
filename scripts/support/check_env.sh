@@ -6,6 +6,12 @@ echo "Checking environment variables..."
 OPENAI_KEY_MISSING=false
 ANTHROPIC_KEY_MISSING=false
 GEMINI_KEY_MISSING=false
+LITELLM_KEY_MISSING=true
+
+if [ -n "${LITELLM_API_KEY}" ] || [ -n "${LITELLM_MASTER_KEY}" ]; then
+    echo "LITELLM_API_KEY or LITELLM_MASTER_KEY set: LiteLLM Vertex Gateway models are available"
+    LITELLM_KEY_MISSING=false
+fi
 
 if [ -z "${OPENAI_API_KEY}" ]; then
     echo "OPENAI_API_KEY environment variable is not set"
@@ -37,8 +43,8 @@ else
     echo "GEMINI_API_KEY set: Gemini models are available"
 fi
 
-if [ "$OPENAI_KEY_MISSING" = true ] && [ "$ANTHROPIC_KEY_MISSING" = true ] && [ "$GEMINI_KEY_MISSING" = true ]; then
-    echo "ERROR: OPENAI_API_KEY, ANTHROPIC_API_KEY and GEMINI_API_KEY are missing."
+if [ "$OPENAI_KEY_MISSING" = true ] && [ "$ANTHROPIC_KEY_MISSING" = true ] && [ "$GEMINI_KEY_MISSING" = true ] && [ "$LITELLM_KEY_MISSING" = true ]; then
+    echo "ERROR: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, and LITELLM_API_KEY/LITELLM_MASTER_KEY are missing."
     echo "At least one API key is required to use language models."
     echo "Please set at least one of these keys before running the application."
     exit 1
