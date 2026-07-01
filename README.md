@@ -170,3 +170,19 @@ java -jar jwlee-cowork-0.1.0-SNAPSHOT.jar
 ### 3. 주의 사항
 - **Python 의존성**: `StructureAgent` 등 일부 에이전트는 로컬의 `.venv/bin/python`과 `scripts/` 폴더를 직접 참조합니다. JAR 파일만 복사해서 실행할 경우 분석 실패 및 에러가 발생하오니 반드시 전체 패키지 구조를 유지해 주세요.
 - **방어 로직**: 스크립트나 가상환경이 누락된 경우, 시스템은 할루시네이션(환각) 방지를 위해 분석을 중단하고 예외를 발생시킵니다.
+
+---
+
+## 참고
+2026-07-01 기준, Production용으로 코드를 전환할 때는 아래와 같은 모델 이용을 고려하세요(litellm 사용시에만 적용가능):
+
+- Architect
+    - claude-opus-4-8
+- Default
+    - gemini-3.5-flash
+- Simple
+    - deepseek-v3.2
+- Trivial
+    - gemini-3.1-flash-lite
+- Embedding
+    - text-embedding-005
